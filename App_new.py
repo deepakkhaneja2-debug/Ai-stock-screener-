@@ -162,3 +162,61 @@ for stock in stocks:
     except Exception as e:
         print(stock, e)
         continue
+# ==========================
+# Create DataFrame
+# ==========================
+
+result = pd.DataFrame(
+    rows,
+    columns=[
+        "Stock",
+        "Price",
+        "EMA20",
+        "EMA50",
+        "RSI",
+        "MACD",
+        "AI Score",
+        "Signal"
+    ]
+)
+
+# Sort by AI Score
+result = result.sort_values(
+    by="AI Score",
+    ascending=False
+)
+
+# ==========================
+# Search Box
+# ==========================
+
+search = st.text_input("🔍 Search Stock")
+
+if search:
+    result = result[
+        result["Stock"].str.contains(search.upper())
+    ]
+
+# ==========================
+# Show Table
+# ==========================
+
+st.dataframe(
+    result,
+    use_container_width=True
+)
+
+# ==========================
+# Download Excel
+# ==========================
+
+csv = result.to_csv(index=False).encode("utf-8")
+
+st.download_button(
+    label="📥 Download CSV",
+    data=csv,
+    file_name="AI_Stock_Scanner.csv",
+    mime="text/csv"
+)
+
+st.success("✅ Scanner Completed Successfully")
