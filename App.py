@@ -63,7 +63,7 @@ def rsi(series, period=14):
 rows = []
 
 for stock in stocks:
-    try:
+    try:print(f"Checking: {stock}")
         df = yf.download(
             stock,
             period="6mo",
@@ -71,8 +71,9 @@ for stock in stocks:
             auto_adjust=True
         )
 
-        if df.empty:
-            continue
+            if df.empty:  
+            print(f"No data: {stock}")
+    continue
 
         close = df["Close"]
 
@@ -101,8 +102,8 @@ for stock in stocks:
             signal
         ])
 
-    except Exception:
-        continue
+    except Exception as e:
+    print(f"Error in {stock}: {e}")
 
 result = pd.DataFrame(
     rows,
