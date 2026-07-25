@@ -71,7 +71,27 @@ def calculate_rsi(close, period=14):
 
     rsi = 100 - (100 / (1 + rs))
 
-    return rsi
+    return rsidef calculate_atr(df, period=14):
+    high = df["High"]
+    low = df["Low"]
+    close = df["Close"]
+
+    if isinstance(high, pd.DataFrame):
+        high = high.iloc[:, 0]
+    if isinstance(low, pd.DataFrame):
+        low = low.iloc[:, 0]
+    if isinstance(close, pd.DataFrame):
+        close = close.iloc[:, 0]
+
+    tr1 = high - low
+    tr2 = (high - close.shift()).abs()
+    tr3 = (low - close.shift()).abs()
+
+    tr = pd.concat([tr1, tr2, tr3], axis=1).max(axis=1)
+
+    atr = tr.rolling(period).mean()
+
+    return atr
 
 # Result list
 rows = []
