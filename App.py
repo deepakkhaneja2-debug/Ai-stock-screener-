@@ -63,7 +63,9 @@ def rsi(series, period=14):
 rows = []
 
 for stock in stocks:
-    try:print(f"Checking: {stock}")
+    try:
+        print(f"Checking: {stock}")
+
         df = yf.download(
             stock,
             period="6mo",
@@ -71,13 +73,12 @@ for stock in stocks:
             auto_adjust=True
         )
 
-            if df.empty:  
+        if df.empty:
             print(f"No data: {stock}")
-    continue
+            continue
 
         close = df["Close"]
 
-        # Handle MultiIndex if returned
         if isinstance(close, pd.DataFrame):
             close = close.iloc[:, 0]
 
@@ -103,17 +104,8 @@ for stock in stocks:
         ])
 
     except Exception as e:
-    print(f"Error in {stock}: {e}")
-
-result = pd.DataFrame(
-    rows,
-    columns=[
-        "Stock",
-        "Price",
-        "EMA20",
-        "EMA50",
-        "RSI",
-        "Signal"
+        print(f"Error in {stock}: {e}")
+        continue
     ]
 )
 
