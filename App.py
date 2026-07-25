@@ -73,7 +73,7 @@ def calculate_rsi(close, period=14):
 
     return rsi
     
-   def calculate_atr(df, period=14):
+def calculate_atr(df, period=14):
     high = df["High"]
     low = df["Low"]
     close = df["Close"]
