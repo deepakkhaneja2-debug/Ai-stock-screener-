@@ -75,3 +75,90 @@ def calculate_rsi(close, period=14):
 
 # Result list
 rows = []
+# ==========================
+# Scan Stocks
+# ==========================
+
+for stock in stocks:
+    try:
+        df = yf.download(
+            stock,
+            period="6mo",
+            progress=False,
+            auto_adjust=True
+        )
+
+        if df.empty:
+            continue
+
+        close = df["Close"]
+
+        # Handle MultiIndex
+        if isinstance(close, pd.DataFrame):
+            close = close.iloc[:, 0]
+
+        # EMA
+        ema20 = close.ewm(span=20, adjust=False).mean()
+        ema50 = close.ewm(span=50, adjust=False).mean()
+
+        # RSI
+        rsi = calculate_rsi(close)
+
+        # MACD
+        ema12 = close.ewm(span=12, adjust=False).mean()
+        ema26 = close.ewm(span=26, adjust=False).mean()
+
+        macd = ema12 - ema26
+        signal_line = macd.ewm(span=9, adjust=False).mean()
+
+        price = float(close.iloc[-1])
+
+        ema20_last = float(ema20.iloc[-1])
+        ema50_last = float(ema50.iloc[-1])
+
+        rsi_last = float(rsi.iloc[-1])
+        macd_last = float(macd.iloc[-1])
+        signal_last = float(signal_line.iloc[-1])
+
+        # AI Score
+        score = 0
+
+        if price > ema20_last:
+            score += 20
+
+        if ema20_last > ema50_last:
+            score += 20
+
+        if 50 <= rsi_last <= 70:
+            score += 20
+
+        if macd_last > signal_last:
+            score += 20
+
+        if price > ema50_last:
+            score += 20
+
+        # Signal
+        if score >= 80:
+            signal = "STRONG BUY 🟢"
+        elif score >= 60:
+            signal = "BUY ✅"
+        elif score >= 40:
+            signal = "WATCH 👀"
+        else:
+            signal = "SELL ❌"
+
+        rows.append([
+            stock,
+            round(price,2),
+            round(ema20_last,2),
+            round(ema50_last,2),
+            round(rsi_last,2),
+            round(macd_last,2),
+            score,
+            signal
+        ])
+
+    except Exception as e:
+        print(stock, e)
+        continue
