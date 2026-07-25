@@ -12,9 +12,23 @@ stocks = [
     "TCS.NS",
     "INFY.NS",
     "HDFCBANK.NS",
-    "ICICIBANK.NS"
+    "ICICIBANK.NS",
+    "SBIN.NS",
+    "LT.NS",
+    "ITC.NS",
+    "BHARTIARTL.NS",
+    "AXISBANK.NS",
+    "KOTAKBANK.NS",
+    "BAJFINANCE.NS",
+    "BAJAJFINSV.NS",
+    "MARUTI.NS",
+    "TITAN.NS",
+    "SUNPHARMA.NS",
+    "ASIANPAINT.NS",
+    "ULTRACEMCO.NS",
+    "NTPC.NS",
+    "POWERGRID.NS"
 ]
-
 def rsi(series, period=14):
     delta = series.diff()
     gain = delta.clip(lower=0)
