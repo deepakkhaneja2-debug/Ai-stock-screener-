@@ -146,7 +146,7 @@ for stock in stocks:
         atr_last = atr.iloc[-1]
 
         if pd.isna(atr_last):
-        continue
+           continue
 
         atr_last = float(atr_last)
 
