@@ -220,7 +220,7 @@ result = pd.DataFrame(
         "Signal",
        "Stop Loss",
        "Target"
-    ])
+    ]
 
 
 # Sort by AI Score
