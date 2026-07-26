@@ -183,19 +183,19 @@ for stock in stocks:
         else:
             signal = "SELL ❌"
 
-                rows.append([
-            stock,
-            round(price, 2),
-            round(ema20_last, 2),
-            round(ema50_last, 2),
-            round(rsi_last, 2),
-            round(macd_last, 2),
-            round(atr_last, 2),
-            score,
-            signal,
-            round(stop_loss, 2),
-            round(target, 2),
-            rr
+        rows.append([
+        stock,
+        round(price, 2),
+        round(ema20_last, 2),
+        round(ema50_last, 2),
+        round(rsi_last, 2),
+        round(macd_last, 2),
+        round(atr_last, 2),
+        score,
+        signal,
+        round(stop_loss, 2),
+        round(target, 2),
+        rr
         ])
     except Exception as e:
         st.error(f"{stock}: {e}")
