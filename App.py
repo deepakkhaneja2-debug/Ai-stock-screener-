@@ -209,8 +209,17 @@ result = pd.DataFrame(
         "MACD",
         "AI Score",
         "Signal",
-        round(stop_loss, 2),
-        round(target, 2)
+    columns=[
+        "Stock",
+        "Price",
+        "EMA20",
+        "EMA50",
+        "RSI",
+        "MACD",
+        "AI Score",
+        "Signal",
+       "Stop Loss",
+       "Target"
     ]
 )
 
