@@ -152,6 +152,9 @@ for stock in stocks:
 
         stop_loss = round(price - (2 * atr_last), 2)
         target = round(price + (3 * atr_last), 2)
+        risk = price - stop_loss
+        reward = target - price
+        rr = round(reward / risk, 2) if risk > 0 else 0
         # AI Score
         score = 0
 
@@ -214,7 +217,7 @@ result = pd.DataFrame(
         "AI Score",
         "Signal",
         "Stop Loss",
-        "Target"
+        "Target",
         "R:R"
     ]
 )
