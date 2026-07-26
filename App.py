@@ -187,6 +187,7 @@ for stock in stocks:
         round(ema50_last, 2),
         round(rsi_last, 2),
         round(macd_last, 2),
+        round(atr_last, 2),
         score,
         signal,
         round(stop_loss, 2),
