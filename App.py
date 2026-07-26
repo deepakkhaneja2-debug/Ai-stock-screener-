@@ -208,7 +208,7 @@ result = pd.DataFrame(
         "RSI",
         "MACD",
         "AI Score",
-        "Signal"
+        "Signal",
         round(stop_loss, 2),
         round(target, 2)
     ]
