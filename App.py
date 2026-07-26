@@ -192,6 +192,7 @@ for stock in stocks:
         signal,
         round(stop_loss, 2),
         round(target, 2)
+        rr
 ])
     except Exception as e:
         st.error(f"{stock}: {e}")
@@ -214,6 +215,7 @@ result = pd.DataFrame(
         "Signal",
         "Stop Loss",
         "Target"
+        "R:R"
     ]
 )
 
