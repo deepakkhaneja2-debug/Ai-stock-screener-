@@ -187,8 +187,8 @@ for stock in stocks:
         ])
 
     except Exception as e:
-    st.error(f"{stock}: {e}")
-    continue
+        st.error(f"{stock}: {e}")
+        continue
 # ==========================
 # Create DataFrame
 # ==========================
