@@ -192,7 +192,6 @@ for stock in stocks:
     round(stop_loss, 2),
     round(target, 2)
 ])
-
     except Exception as e:
         st.error(f"{stock}: {e}")
         continue
