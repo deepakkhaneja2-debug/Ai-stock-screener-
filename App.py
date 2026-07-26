@@ -191,7 +191,7 @@ for stock in stocks:
         score,
         signal,
         round(stop_loss, 2),
-        round(target, 2)
+        round(target, 2),
         rr
 ])
     except Exception as e:
