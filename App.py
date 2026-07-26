@@ -199,7 +199,6 @@ for stock in stocks:
 # ==========================
 
 result = pd.DataFrame(
-result = pd.DataFrame(
     rows,
     columns=[
         "Stock",
