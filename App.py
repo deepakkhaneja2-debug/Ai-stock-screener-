@@ -199,6 +199,7 @@ for stock in stocks:
 # ==========================
 
 result = pd.DataFrame(
+result = pd.DataFrame(
     rows,
     columns=[
         "Stock",
@@ -209,19 +210,10 @@ result = pd.DataFrame(
         "MACD",
         "AI Score",
         "Signal",
-    columns=[
-        "Stock",
-        "Price",
-        "EMA20",
-        "EMA50",
-        "RSI",
-        "MACD",
-        "AI Score",
-        "Signal",
-       "Stop Loss",
-       "Target"
+        "Stop Loss",
+        "Target"
     ]
-
+)
 
 # Sort by AI Score
 result = result.sort_values(
