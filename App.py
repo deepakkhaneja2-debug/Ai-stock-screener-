@@ -183,7 +183,7 @@ for stock in stocks:
         else:
             signal = "SELL ❌"
 
-        rows.append([
+    rows.append([
         stock,
         round(price, 2),
         round(ema20_last, 2),
