@@ -143,7 +143,12 @@ for stock in stocks:
         rsi_last = float(rsi.iloc[-1])
         macd_last = float(macd.iloc[-1])
         signal_last = float(signal_line.iloc[-1])
-        atr_last = float(atr.iloc[-1])
+        atr_last = atr.iloc[-1]
+
+        if pd.isna(atr_last):
+        continue
+
+        atr_last = float(atr_last)
 
         stop_loss = round(price - (2 * atr_last), 2)
         target = round(price + (3 * atr_last), 2)
