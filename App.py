@@ -134,7 +134,9 @@ for stock in stocks:
         signal_line = macd.ewm(span=9, adjust=False).mean()
 
         price = float(close.iloc[-1])
-
+       
+        atr = calculate_atr(df)
+        
         ema20_last = float(ema20.iloc[-1])
         ema50_last = float(ema50.iloc[-1])
 
