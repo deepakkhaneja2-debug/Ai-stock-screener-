@@ -69,7 +69,7 @@ class SignalEngine:
 
         return score >= SELL_SCORE
       
-        def signal_strength(self, data):
+    def signal_strength(self, data):
 
             score = 0
 
