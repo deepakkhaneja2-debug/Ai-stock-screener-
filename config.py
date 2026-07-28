@@ -53,3 +53,10 @@ WATCHLIST_ONLY = False
 # ===========================
 
 STARTING_CAPITAL = 100000
+
+# ===========================
+# Signal Score Threshold
+# ===========================
+
+BUY_SCORE = 60
+SELL_SCORE = 60
