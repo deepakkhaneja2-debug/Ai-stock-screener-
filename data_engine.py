@@ -67,7 +67,7 @@ class DataEngine:
 
         return result
                             
-   def validate_data(self, data):
+    def validate_data(self, data):
 
         if data.empty:
             return False
