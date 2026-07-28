@@ -200,11 +200,11 @@ class StockScanner:
 
 if __name__ == "__main__":
 
-st.set_page_config(page_title="AI Stock Scanner", layout="wide")
+    st.set_page_config(page_title="AI Stock Scanner", layout="wide")
 
-st.title("AI Stock Scanner V1.1")
+    st.title("AI Stock Scanner V1.1")
 
-st.success("App Running Successfully")
+    st.success("App Running Successfully")
 
     scanner = StockScanner()
 
