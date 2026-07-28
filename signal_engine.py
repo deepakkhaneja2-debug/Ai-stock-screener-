@@ -75,8 +75,7 @@ class SignalEngine:
 
             last = data.iloc[-1]
 
-            if last["EMA20"] > 
-last["EMA50"]:
+            if last["EMA20"] > last["EMA50"]:
                 score += 20
 
             if last["RSI"] > 55:
