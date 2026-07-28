@@ -118,6 +118,10 @@ class StockScanner:
 
         self.results = pd.DataFrame(self.results)
 
+        print("Rows:", len(self.results))
+        print("Columns:", self.results.columns.tolist())
+        print(self.results)
+
         return self.results
 
     # ==========================================
@@ -125,6 +129,15 @@ class StockScanner:
     # ==========================================
 
     def show_dashboard(self):
+
+    if self.results.empty:
+        print("No scan results generated.")
+        return
+
+    if "Signal" not in self.results.columns:
+        print("Signal column missing.")
+        print(self.results.columns)
+        return
 
         print("\n========== TOP BUY ==========")
 
