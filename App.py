@@ -65,8 +65,6 @@ class StockScanner:
         # Patterns
         data, pattern_score = self.pattern_engine.process(data)
 
-        st.write(data.columns.tolist())
-        
         # Signal
         signal = self.signal_engine.generate_signal(data)
 
