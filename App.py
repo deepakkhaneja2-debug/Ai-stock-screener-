@@ -199,12 +199,7 @@ class StockScanner:
 # ==========================================
 
 if __name__ == "__main__":
-    st.subheader("Scanner Results")
 
-if not results.empty:
-    st.dataframe(results, use_container_width=True)
-else:
-    st.warning("No signals found.")
     st.set_page_config(page_title="AI Stock Scanner", layout="wide")
 
     st.title("AI Stock Scanner V1.1")
@@ -213,20 +208,17 @@ else:
 
     scanner = StockScanner()
 
-    print("\n===================================")
-    print("   AI STOCK SCANNER V1.1")
-    print("===================================\n")
-
     results = scanner.run()
 
-    scanner.show_dashboard()
+    st.subheader("Scanner Results")
 
-    scanner.send_alerts()
+    if not results.empty:
+        st.dataframe(results, use_container_width=True)
+    else:
+        st.warning("No signals found.")
 
-    scanner.save_logs()
-
-    scanner.performance_report()
-
-    print("\n===================================")
-    print(" Scan Completed Successfully")
-    print("===================================\n")
+    # Optional (baad me enable karenge)
+    # scanner.show_dashboard()
+    # scanner.send_alerts()
+    # scanner.save_logs()
+    # scanner.performance_report()
