@@ -15,7 +15,7 @@ from performance_analyzer import PerformanceAnalyzer
 
 class StockScanner:
 
-    def __init__(self):
+def __init__(self):
 
         self.data_engine = DataEngine()
 
