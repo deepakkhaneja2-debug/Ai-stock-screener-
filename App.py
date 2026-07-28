@@ -42,6 +42,9 @@ class StockScanner:
 
         self.market_data = self.data_engine.scan_ready_data()
 
+        st.write(self.market_data.keys())
+        st.write(len(self.market_data))
+        
         print(f"Loaded {len(self.market_data)} Symbols")
 
     # ==========================================
