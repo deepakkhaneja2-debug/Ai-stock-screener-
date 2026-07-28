@@ -115,7 +115,6 @@ class StockScanner:
         print("Rows:", len(self.results))
         print("Columns:", self.results.columns.tolist())
         print(self.results)
-        st.write(self.results)
         
         return self.results
 
