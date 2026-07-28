@@ -49,6 +49,8 @@ class StockScanner:
     # ==========================================
 
     def process_symbol(self, symbol, data):
+    
+        import streamlit as st
 
         if data.empty:
             return
@@ -106,7 +108,8 @@ class StockScanner:
         print("Rows:", len(self.results))
         print("Columns:", self.results.columns.tolist())
         print(self.results)
-
+        st.write(self.results)
+        
         return self.results
 
     # ==========================================
