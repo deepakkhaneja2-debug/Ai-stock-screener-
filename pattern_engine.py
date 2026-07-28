@@ -208,18 +208,27 @@ class PatternEngine:
         score = self.pattern_score(data)
 
         return data, score
+
+    # ======================================
+    # Detect All Patterns
+    # ======================================
+
+    def detect_patterns(self, data):
+
+        fake_up, fake_down = self.fake_breakout(data)
+
+        return {
+            "BullishEngulfing": self.bullish_engulfing(data).iloc[-1],
+            "BearishEngulfing": self.bearish_engulfing(data).iloc[-1],
+            "Hammer": self.hammer(data).iloc[-1],
+            "ShootingStar": self.shooting_star(data).iloc[-1],
+            "Doji": self.doji(data).iloc[-1],
+            "MorningStar": self.morning_star(data).iloc[-1],
+            "EveningStar": self.evening_star(data).iloc[-1],
+            "Breakout": self.breakout(data)[0].iloc[-1],
+            "FakeBreakoutUp": fake_up.iloc[-1],
+            "FakeBreakoutDown": fake_down.iloc[-1],
+            "PatternScore": self.pattern_score(data)
+        }
+
         
-# ======================================
-# Detect All Patterns
-# ======================================
-
-def detect_patterns(self, data):
-
-    return {
-        "BullishEngulfing": self.bullish_engulfing(data).iloc[-1],
-        "Hammer": self.hammer(data).iloc[-1],
-        "MorningStar": self.morning_star(data).iloc[-1],
-        "Breakout": self.breakout(data)[0].iloc[-1],
-        "FakeBreakout": self.fake_breakout(data).iloc[-1],
-        "PatternScore": self.pattern_score(data)
-    }
