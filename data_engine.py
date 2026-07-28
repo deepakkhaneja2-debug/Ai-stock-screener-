@@ -38,6 +38,12 @@ class DataEngine:
 
                 data.dropna(inplace=True)
 
+                if isinstance(data.columns,   
+                pd.MultiIndex):
+                    data.columns =  
+                data.columns.get_level_values
+                (0)
+
                 return data
 
             except Exception as e:
