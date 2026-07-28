@@ -128,7 +128,7 @@ class StockScanner:
     # Dashboard
     # ==========================================
 
-    def show_dashboard(self):
+def show_dashboard(self):
 
     if self.results.empty:
         print("No scan results generated.")
@@ -139,29 +139,29 @@ class StockScanner:
         print(self.results.columns)
         return
 
-        print("\n========== TOP BUY ==========")
+    print("\n========== TOP BUY ==========")
 
-        print(
-            self.dashboard.top_buy(
-                self.results
-            )
+    print(
+        self.dashboard.top_buy(
+            self.results
         )
+    )
 
-        print("\n========== TOP SELL ==========")
+    print("\n========== TOP SELL ==========")
 
-        print(
-            self.dashboard.top_sell(
-                self.results
-            )
+    print(
+        self.dashboard.top_sell(
+            self.results
         )
+    )
 
-        print("\n========== SUMMARY ==========")
+    print("\n========== SUMMARY ==========")
 
-        print(
-            self.dashboard.summary(
-                self.results
-            )
+    print(
+        self.dashboard.summary(
+            self.results
         )
+    )
     # ==========================================
     # Send Alerts
     # ==========================================
