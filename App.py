@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import traceback
 
 from config import *
 
@@ -102,8 +103,8 @@ class StockScanner:
                 self.process_symbol(symbol, data)
 
             except Exception:
-    st.write(f"Error in: {symbol}")
-    st.code(traceback.format_exc())
+                st.write(f"Error in: {symbol}")
+                st.code(traceback.format_exc())
 
         self.results = pd.DataFrame(self.results)
 
