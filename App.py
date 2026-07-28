@@ -76,6 +76,8 @@ class StockScanner:
             self.capital
         )
 
+        last = data.iloc[-1]
+
         self.results.append({
 
             "Symbol": symbol,
