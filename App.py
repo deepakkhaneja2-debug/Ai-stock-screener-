@@ -99,6 +99,10 @@ class StockScanner:
 
         self.results = pd.DataFrame(self.results)
 
+        print(self.results)
+        print(self.results.columns)
+        print(self.results.shape)
+
         print("Rows:", len(self.results))
         print("Columns:", self.results.columns.tolist())
         print(self.results)
