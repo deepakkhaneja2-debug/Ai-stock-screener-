@@ -118,25 +118,17 @@ class SignalEngine:
 
     if last["EMA20"] > last["EMA50"]:
         strength += 15
-    elif last["EMA20"] < last["EMA50"]:
-        strength += 15
 
     if last["MACD"] > last["MACD_SIGNAL"]:
         strength += 15
-    elif last["MACD"] < last["MACD_SIGNAL"]:
-        strength += 15
 
     if last["RSI"] > 55:
-        strength += 10
-    elif last["RSI"] < 45:
         strength += 10
 
     if last["VOL_SPIKE"]:
         strength += 10
 
     if last["Close"] > last["VWAP"]:
-        strength += 10
-    elif last["Close"] < last["VWAP"]:
         strength += 10
 
     strength += min(last["TrendScore"], 40)
