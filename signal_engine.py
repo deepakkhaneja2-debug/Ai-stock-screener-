@@ -89,28 +89,41 @@ class SignalEngine:
 
     def signal_strength(self, data):
 
-        last = data.iloc[-1]
+    last = data.iloc[-1]
 
-        strength = 0
+    strength = 0
 
-        if last["EMA20"] > last["EMA50"]:
-            strength += 15
+    # EMA
+    if last["EMA20"] > last["EMA50"]:
+        strength += 15
+    elif last["EMA20"] < last["EMA50"]:
+        strength += 15
 
-        if last["MACD"] > last["MACD_SIGNAL"]:
-            strength += 15
+    # MACD
+    if last["MACD"] > last["MACD_SIGNAL"]:
+        strength += 15
+    elif last["MACD"] < last["MACD_SIGNAL"]:
+        strength += 15
 
-        if last["RSI"] > 55:
-            strength += 10
+    # RSI
+    if last["RSI"] > 55:
+        strength += 10
+    elif last["RSI"] < 45:
+        strength += 10
 
-        if last["VOL_SPIKE"]:
-            strength += 10
+    # Volume
+    if last["VOL_SPIKE"]:
+        strength += 10
 
-        if last["Close"] > last["VWAP"]:
-            strength += 10
+    # VWAP
+    if last["Close"] > last["VWAP"]:
+        strength += 10
+    elif last["Close"] < last["VWAP"]:
+        strength += 10
 
-        strength += min(last["TrendScore"], 40)
+    strength += min(last["TrendScore"], 40)
 
-        return min(strength, 100)
+    return min(strength, 100)
 
     # ====================================
     # FINAL SIGNAL
