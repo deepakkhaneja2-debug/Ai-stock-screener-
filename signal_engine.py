@@ -39,7 +39,7 @@ class SignalEngine:
 
         return score >= BUY_SCORE
 
-      # ====================================
+    # ====================================
     # SELL SIGNAL
     # ====================================
 
@@ -68,7 +68,30 @@ class SignalEngine:
             score += 20
 
         return score >= SELL_SCORE
+      
+        def signal_strength(self, data):
 
+            score = 0
+
+            last = data.iloc[-1]
+
+            if last["EMA20"] > 
+last["EMA50"]:
+                score += 20
+
+            if last["RSI"] > 55:
+                score += 20
+
+            if last["MACD"] > last["MACD_SIGNAL"]:
+                score += 20
+
+            if last["TrendScore"] > 50:
+                score += 20
+
+            if last["VOL_SPIKE"]:
+                score += 20
+
+            return min(score, 100)
 
     # ====================================
     # WATCH SIGNAL
