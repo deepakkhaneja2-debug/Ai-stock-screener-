@@ -79,6 +79,8 @@ class StockScanner:
         self.results.append({
 
             "Symbol": symbol,
+            "CurrentPrice":  
+        round(last["Close"], 2),
             "Signal": signal["signal"],
             "Confidence": signal["strength"],
             "PatternScore": pattern_score,
