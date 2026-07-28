@@ -242,29 +242,29 @@ class StockScanner:
         print(" Scan Completed Successfully")
         print("===================================\n")
 
-# ==========================================
-# MAIN
-# ==========================================
+   # ==========================================
+   # MAIN
+   # ==========================================
 
-if __name__ == "__main__":
+   if __name__ == "__main__":
 
-    scanner = StockScanner()
+        scanner = StockScanner()
 
-    print("\n===================================")
-    print("   AI STOCK SCANNER V1.1")
-    print("===================================\n")
+        print("\n===================================")
+        print("   AI STOCK SCANNER V1.1")
+        print("===================================\n")
 
-    results = scanner.run()
+        results = scanner.run()
 
-    scanner.show_dashboard()
+        scanner.show_dashboard()
 
-    scanner.send_alerts()
+        scanner.send_alerts()
 
-    scanner.save_logs()
+        scanner.save_logs()
 
-    scanner.performance_report()
+        scanner.performance_report()
 
-    print("\n===================================")
-    print(" Scan Completed Successfully")
-    print("===================================\n")
+        print("\n===================================")
+        print(" Scan Completed Successfully")
+        print("===================================\n")
 
