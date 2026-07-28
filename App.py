@@ -64,6 +64,8 @@ class StockScanner:
         # Patterns
         data, pattern_score = self.pattern_engine.process(data)
 
+        st.write(data.columns.tolist())
+        
         # Signal
         signal = self.signal_engine.generate_signal(data)
 
@@ -100,7 +102,7 @@ class StockScanner:
                 self.process_symbol(symbol, data)
 
             except Exception as e:
-                print(f"{symbol} Error : {e}")
+                st.error(f"{symbol} Error: {e}")
 
         self.results = pd.DataFrame(self.results)
 
