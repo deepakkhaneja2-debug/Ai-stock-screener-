@@ -47,3 +47,9 @@ MACD_SIGNAL = 9
 
 # Watchlist
 WATCHLIST_ONLY = False
+
+# ===========================
+# Capital Settings
+# ===========================
+
+STARTING_CAPITAL = 100000
