@@ -69,28 +69,42 @@ class SignalEngine:
 
         return score >= SELL_SCORE
       
-    def signal_strength(self, data):
+    # ====================================
+# SIGNAL STRENGTH
+# ====================================
 
-            score = 0
+def signal_strength(self, data):
 
-            last = data.iloc[-1]
+    last = data.iloc[-1]
 
-            if last["EMA20"] > last["EMA50"]:
-                score += 20
+    strength = 0
 
-            if last["RSI"] > 55:
-                score += 20
+    if last["EMA20"] > last["EMA50"]:
+        strength += 15
+    elif last["EMA20"] < last["EMA50"]:
+        strength += 15
 
-            if last["MACD"] > last["MACD_SIGNAL"]:
-                score += 20
+    if last["MACD"] > last["MACD_SIGNAL"]:
+        strength += 15
+    elif last["MACD"] < last["MACD_SIGNAL"]:
+        strength += 15
 
-            if last["TrendScore"] > 50:
-                score += 20
+    if last["RSI"] > 55:
+        strength += 10
+    elif last["RSI"] < 45:
+        strength += 10
 
-            if last["VOL_SPIKE"]:
-                score += 20
+    if last["VOL_SPIKE"]:
+        strength += 10
 
-            return min(score, 100)
+    if last["Close"] > last["VWAP"]:
+        strength += 10
+    elif last["Close"] < last["VWAP"]:
+        strength += 10
+
+    strength += min(last["TrendScore"], 40)
+
+    return min(strength, 100)
 
     # ====================================
     # WATCH SIGNAL
