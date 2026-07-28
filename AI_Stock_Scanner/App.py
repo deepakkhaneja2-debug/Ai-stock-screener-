@@ -107,7 +107,7 @@ class StockScanner:
 
             try:
 
-                self.process_symbol(
+        self.process_symbol(
                     symbol,
                     data
                 )
