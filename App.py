@@ -199,7 +199,12 @@ class StockScanner:
 # ==========================================
 
 if __name__ == "__main__":
+    st.subheader("Scanner Results")
 
+if not results.empty:
+    st.dataframe(results, use_container_width=True)
+else:
+    st.warning("No signals found.")
     st.set_page_config(page_title="AI Stock Scanner", layout="wide")
 
     st.title("AI Stock Scanner V1.1")
