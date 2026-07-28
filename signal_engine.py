@@ -87,7 +87,7 @@ class SignalEngine:
     # SIGNAL STRENGTH
     # ====================================
 
-        def signal_strength(self, data):
+    def signal_strength(self, data):
 
             last = data.iloc[-1]
 
