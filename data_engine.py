@@ -41,8 +41,7 @@ class DataEngine:
                 if isinstance(data.columns,   
                 pd.MultiIndex):
                     data.columns =  
-                data.columns.get_level_values
-                (0)
+               data.columns.get_level_values(0)
 
                 return data
 
