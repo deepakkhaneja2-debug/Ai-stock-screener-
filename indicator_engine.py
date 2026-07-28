@@ -243,6 +243,8 @@ class IndicatorEngine:
 
         data = self.add_advanced_indicators(data)
 
+        data["TrendScore"] = self.trend_score(data)
+
         score = self.final_score(data)
 
         return data, score
