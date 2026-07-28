@@ -128,13 +128,13 @@ class StockScanner:
     # Dashboard
     # ==========================================
 
-def show_dashboard(self):
+    def show_dashboard(self):
 
-    if self.results.empty:
+        if self.results.empty:
         print("No scan results generated.")
         return
 
-    if "Signal" not in self.results.columns:
+        if "Signal" not in self.results.columns:
         print("Signal column missing.")
         print(self.results.columns)
         return
@@ -244,27 +244,27 @@ def show_dashboard(self):
         print("\nAverage Loss")
 
         print(self.performance.average_loss())
-# ==========================================
-# MAIN
-# ==========================================
+    # ==========================================
+    # MAIN
+    # ==========================================
 
-if __name__ == "__main__":
+       if __name__ == "__main__":
 
-    scanner = StockScanner()
+        scanner = StockScanner()
+           
+   print("\n===================================")
+   print("   AI STOCK SCANNER V1.1")
+   print("===================================\n")
 
-    print("\n===================================")
-    print("   AI STOCK SCANNER V1.1")
-    print("===================================\n")
+        results = scanner.run()
 
-    results = scanner.run()
+        scanner.show_dashboard()
 
-    scanner.show_dashboard()
+        scanner.send_alerts()
 
-    scanner.send_alerts()
+        scanner.save_logs()
 
-    scanner.save_logs()
-
-    scanner.performance_report()
+        scanner.performance_report()
 
     print("\n===================================")
     print(" Scan Completed Successfully")
