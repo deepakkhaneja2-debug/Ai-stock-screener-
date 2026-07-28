@@ -21,29 +21,37 @@ class DataEngine:
 
     def download_stock(self, symbol, interval="1d", period="6mo"):
 
-        for attempt in range(self.retry_count):
+    for attempt in range(self.retry_count):
 
-            try:
+        try:
 
-                data = yf.download(
-                    symbol,
-                    interval=interval,
-                    period=period,
-                    progress=False,
-                    auto_adjust=False
-                )
+            data = yf.download(
+                symbol,
+                interval=interval,
+                period=period,
+                progress=False,
+                auto_adjust=False
+            )
 
-                if data.empty:
-                    raise Exception("No Data")
+            if data.empty:
+                raise Exception("No Data")
 
-                data.dropna(inplace=True)
+            data.dropna(inplace=True)
 
-                if isinstance(data.columns,   
-                pd.MultiIndex):
-                    data.columns =  
-               data.columns.get_level_values(0)
+            if isinstance(data.columns, pd.MultiIndex):
+                data.columns = data.columns.get_level_values(0)
 
-                return data
+            return data
+
+        except Exception as e:
+
+            logging.warning(
+                f"{symbol} Retry {attempt+1} : {e}"
+            )
+
+            time.sleep(self.retry_delay)
+
+    return pd.DataFrame()
 
             except Exception as e:
 
