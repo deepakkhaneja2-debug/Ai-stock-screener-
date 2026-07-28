@@ -101,8 +101,9 @@ class StockScanner:
             try:
                 self.process_symbol(symbol, data)
 
-            except Exception as e:
-                st.error(f"{symbol} Error: {e}")
+            except Exception:
+    st.write(f"Error in: {symbol}")
+    st.code(traceback.format_exc())
 
         self.results = pd.DataFrame(self.results)
 
