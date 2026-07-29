@@ -79,14 +79,10 @@ class StockScanner:
         self.results.append({
 
             "Symbol": symbol,
-            "CurrentPrice":  
-        round(last["Close"], 2),
             "Signal": signal["signal"],
             "Confidence": signal["strength"],
             "PatternScore": pattern_score,
-            "Entry": trade["Entry"],
             "SL": trade["StopLoss"],
-            "Target": trade["Target"],
             "Qty": trade["Quantity"],
             "CurrentPrice":    trade["CurrentPrice"],
             "Entry": trade["Entry"],
