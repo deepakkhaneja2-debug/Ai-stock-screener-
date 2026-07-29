@@ -13,6 +13,7 @@ from alert_engine import AlertEngine
 from dashboard import DashboardEngine
 from trade_logger import TradeLogger
 from performance_analyzer import PerformanceAnalyzer
+from backtest_engine import BacktestEngine
 
 
 class StockScanner:
@@ -28,7 +29,7 @@ class StockScanner:
         self.dashboard = DashboardEngine()
         self.logger = TradeLogger()
         self.performance = PerformanceAnalyzer()
-
+self.backtest = BacktestEngine()
         self.capital = STARTING_CAPITAL
 
         self.results = []
