@@ -15,7 +15,6 @@ from trade_logger import TradeLogger
 from performance_analyzer import PerformanceAnalyzer
 from backtest_engine import BacktestEngine
 
-
 class StockScanner:
 
     def __init__(self):
