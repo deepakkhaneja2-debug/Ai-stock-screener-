@@ -50,12 +50,19 @@ for _, candle in future.iterrows():
         break
 
 results[-1]["Status"] = status
-        return {
-            "Total Trades": 0,
-            "Wins": 0,
-            "Losses": 0,
-            "Win Rate": 0,
-            "Net Profit": 0,
-            "Capital": capital,
-            "Trades": trades
-        }
+        wins = sum(1 for x in results if x["Status"] == "WIN")
+losses = sum(1 for x in results if x["Status"] == "LOSS")
+opens = sum(1 for x in results if x["Status"] == "OPEN")
+
+total = len(results)
+
+win_rate = round((wins / total) * 100, 2) if total else 0
+
+return {
+    "Total Trades": total,
+    "Wins": wins,
+    "Losses": losses,
+    "Open": opens,
+    "Win Rate": win_rate,
+    "Trades": results
+}
