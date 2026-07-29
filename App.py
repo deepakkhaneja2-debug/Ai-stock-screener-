@@ -87,8 +87,8 @@ class StockScanner:
             "Entry": trade["Entry"],
             "SL": trade["StopLoss"],
             "Target": trade["Target"],
-            "Qty": trade["Quantity"]
-            "CurrentPrice": trade["CurrentPrice"],
+            "Qty": trade["Quantity"],
+            "CurrentPrice":    trade["CurrentPrice"],
             "Entry": trade["Entry"],
             "Target1": trade["Target1"],
             "Target2": trade["Target2"],
