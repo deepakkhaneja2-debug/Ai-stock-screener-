@@ -132,70 +132,47 @@ class RiskEngine:
     # FINAL TRADE PLAN
     # =========================================
 
-    def trade_plan(self,
-                   data,
-                   capital):
+    def trade_plan(self, data, capital):
 
-        last = data.iloc[-1]
+    last = data.iloc[-1]
 
-        entry = last["Close"]
+    current_price = float(last["Close"])
+    atr = float(last["ATR"])
 
-        sl = self.stoploss(data)
+    entry = round(current_price + atr * 0.25, 2)
 
-        tgt = self.target(entry, sl)
+    stoploss = round(entry - atr * 1.5, 2)
 
-        qty = self.quantity(
-            capital,
-            entry,
-            sl
-        )
+    target1 = round(entry + (entry - stoploss) * 1.5, 2)
+    target2 = round(entry + (entry - stoploss) * 2.5, 2)
+    target3 = round(entry + (entry - stoploss) * 4.0, 2)
 
-        return {
+    qty = self.quantity(
+        capital,
+        entry,
+        stoploss
+    )
 
-            "Entry": round(entry, 2),
+    risk = entry - stoploss
+    reward = target2 - entry
 
-            "StopLoss": round(sl, 2),
+    rr = round(reward / risk, 2) if risk > 0 else 0
 
-            "Target": round(tgt, 2),
+    return {
 
-            "Quantity": qty,
+        "CurrentPrice": round(current_price, 2),
+        "Entry": entry,
+        "StopLoss": stoploss,
 
-            "RiskScore": self.risk_score(
-                entry,
-                sl
-            ),
+        "Target1": target1,
+        "Target2": target2,
+        "Target3": target3,
 
-            "RewardScore": self.reward_score(
-                entry,
-                tgt
-            )
+        "RR": rr,
 
-        }
-        
-        last = data.iloc[-1]
+        "Quantity": qty,
 
-        current_price = float(last["Close"])
-        atr = float(last["ATR"])
+        "RiskScore": self.risk_score(entry, stoploss),
+        "RewardScore": self.reward_score(entry, target2)
 
-        entry = round(current_price + atr * 0.25, 2)
-        stoploss = round(entry - atr * 1.5, 2)
-
-        target1 = round(entry + (entry - stoploss) * 1.5, 2)
-        target2 = round(entry + (entry - stoploss) * 2.5, 2)
-        target3 = round(entry + (entry - stoploss) * 4.0, 2)
-
-        risk = entry - stoploss
-        reward = target2 - entry
-
-        rr = round(reward / risk, 2) if risk > 0 else 0
-
-        return {
-            "CurrentPrice": round(current_price, 2),
-            "Entry": entry,
-            "StopLoss": stoploss,
-            "Target1": target1,
-            "Target2": target2,
-            "Target3": target3,
-            "RR": rr,
-            "Quantity": quantity
-}
+    }
