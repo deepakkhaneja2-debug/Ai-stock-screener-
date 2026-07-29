@@ -159,20 +159,14 @@ class RiskEngine:
     rr = round(reward / risk, 2) if risk > 0 else 0
 
     return {
-
         "CurrentPrice": round(current_price, 2),
         "Entry": entry,
         "StopLoss": stoploss,
-
         "Target1": target1,
         "Target2": target2,
         "Target3": target3,
-
         "RR": rr,
-
         "Quantity": qty,
-
         "RiskScore": self.risk_score(entry, stoploss),
         "RewardScore": self.reward_score(entry, target2)
-
     }
