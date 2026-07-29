@@ -35,6 +35,21 @@ for i in range(60, len(data) - 1):
             "SL": sl,
             "Target": target
         })
+future = data.iloc[i + 1 : i + 15]
+
+status = "OPEN"
+
+for _, candle in future.iterrows():
+
+    if candle["Low"] <= sl:
+        status = "LOSS"
+        break
+
+    if candle["High"] >= target:
+        status = "WIN"
+        break
+
+results[-1]["Status"] = status
         return {
             "Total Trades": 0,
             "Wins": 0,
