@@ -172,30 +172,30 @@ class RiskEngine:
 
         }
         
-            last = data.iloc[-1]
+        last = data.iloc[-1]
 
-            current_price = float(last["Close"])
-            atr = float(last["ATR"])
+        current_price = float(last["Close"])
+        atr = float(last["ATR"])
 
-            entry = round(current_price + atr * 0.25, 2)
-            stoploss = round(entry - atr * 1.5, 2)
+        entry = round(current_price + atr * 0.25, 2)
+        stoploss = round(entry - atr * 1.5, 2)
 
-            target1 = round(entry + (entry - stoploss) * 1.5, 2)
-            target2 = round(entry + (entry - stoploss) * 2.5, 2)
-            target3 = round(entry + (entry - stoploss) * 4.0, 2)
+        target1 = round(entry + (entry - stoploss) * 1.5, 2)
+        target2 = round(entry + (entry - stoploss) * 2.5, 2)
+        target3 = round(entry + (entry - stoploss) * 4.0, 2)
 
-            risk = entry - stoploss
-            reward = target2 - entry
+        risk = entry - stoploss
+        reward = target2 - entry
 
-            rr = round(reward / risk, 2) if risk > 0 else 0
+        rr = round(reward / risk, 2) if risk > 0 else 0
 
-            return {
-    "CurrentPrice": round(current_price, 2),
-    "Entry": entry,
-    "StopLoss": stoploss,
-    "Target1": target1,
-    "Target2": target2,
-    "Target3": target3,
-    "RR": rr,
-    "Quantity": quantity
+        return {
+            "CurrentPrice": round(current_price, 2),
+            "Entry": entry,
+            "StopLoss": stoploss,
+            "Target1": target1,
+            "Target2": target2,
+            "Target3": target3,
+            "RR": rr,
+            "Quantity": quantity
 }
