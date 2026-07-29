@@ -121,7 +121,7 @@ class StockScanner:
 
         backtest_results = {}
 
-        for symbol, data in     self.market_data.items():
+    for symbol, data in     self.market_data.items():
 
     if not data.empty:
         backtest_results[symbol] =       self.backtest.run(data)
