@@ -28,7 +28,7 @@ class StockScanner:
         self.dashboard = DashboardEngine()
         self.logger = TradeLogger()
         self.performance = PerformanceAnalyzer()
-self.backtest = BacktestEngine()
+        self.backtest = BacktestEngine()
         self.capital = STARTING_CAPITAL
 
         self.results = []
