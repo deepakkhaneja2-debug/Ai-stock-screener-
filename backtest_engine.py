@@ -60,18 +60,27 @@ class BacktestEngine:
                 continue
 
             # =================================
-            # BUY SETUP
-            # =================================
+# BUY SETUP - V1.2 FILTER
+# =================================
 
-            buy_setup = (
-                ema20 > ema50
-                and macd > macd_signal
-                and 55 < rsi < 75
-                and close > vwap
-            )
+trend_ok = ema20 > ema50
 
-            if not buy_setup:
-                continue
+momentum_ok = macd > macd_signal
+
+rsi_ok = 55 < rsi < 70
+
+price_ok = close > vwap
+
+# Stronger confirmation
+buy_setup = (
+    trend_ok
+    and momentum_ok
+    and rsi_ok
+    and price_ok
+)
+
+if not buy_setup:
+    continue
 
             # =================================
             # ENTRY
