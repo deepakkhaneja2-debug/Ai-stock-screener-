@@ -296,7 +296,104 @@ if __name__ == "__main__":
     else:
 
         st.warning("No signals found.")
+# ==========================================
+# OVERALL BACKTEST DASHBOARD
+# ==========================================
 
+st.subheader("📊 Overall Backtest Dashboard")
+
+all_reports = []
+
+for symbol, report in scanner.backtest_results.items():
+
+    if isinstance(report, dict):
+
+        all_reports.append({
+            "Symbol": symbol,
+            "Trades": report.get("Total Trades", 0),
+            "Wins": report.get("Wins", 0),
+            "Losses": report.get("Losses", 0),
+            "Open": report.get("Open", 0),
+            "Win Rate": report.get("Win Rate", 0),
+            "PnL": report.get("Total PnL", 0),
+            "Profit Factor": report.get("Profit Factor", 0),
+            "Max Drawdown": report.get("Max Drawdown", 0),
+            "Target1": report.get("Target1 Wins", 0),
+            "Target2": report.get("Target2 Wins", 0),
+            "Target3": report.get("Target3 Wins", 0)
+        })
+
+
+overall_df = pd.DataFrame(all_reports)
+
+if not overall_df.empty:
+
+    total_trades = overall_df["Trades"].sum()
+    total_wins = overall_df["Wins"].sum()
+    total_losses = overall_df["Losses"].sum()
+    total_open = overall_df["Open"].sum()
+    total_pnl = overall_df["PnL"].sum()
+
+    closed_trades = total_wins + total_losses
+
+    overall_win_rate = (
+        round((total_wins / closed_trades) * 100, 2)
+        if closed_trades > 0
+        else 0
+    )
+
+    col1, col2, col3, col4 = st.columns(4)
+
+    col1.metric(
+        "Total Trades",
+        int(total_trades)
+    )
+
+    col2.metric(
+        "Wins",
+        int(total_wins)
+    )
+
+    col3.metric(
+        "Losses",
+        int(total_losses)
+    )
+
+    col4.metric(
+        "Overall Win Rate",
+        f"{overall_win_rate}%"
+    )
+
+    col5, col6, col7 = st.columns(3)
+
+    col5.metric(
+        "Total P&L",
+        round(total_pnl, 2)
+    )
+
+    col6.metric(
+        "Open Trades",
+        int(total_open)
+    )
+
+    col7.metric(
+        "Best Stock",
+        overall_df.loc[
+            overall_df["PnL"].idxmax(),
+            "Symbol"
+        ]
+    )
+st.subheader("🏆 Stock Ranking")
+
+ranking_df = overall_df.sort_values(
+    by="PnL",
+    ascending=False
+).reset_index(drop=True)
+
+st.dataframe(
+    ranking_df,
+    use_container_width=True
+)
     # ==========================================
     # BACKTEST SUMMARY
     # ==========================================
