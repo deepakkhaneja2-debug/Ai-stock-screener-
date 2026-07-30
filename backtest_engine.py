@@ -59,28 +59,27 @@ class BacktestEngine:
             if atr <= 0:
                 continue
 
-        # =================================
-# BUY SETUP - V1.2 FILTER
-# =================================
+            # =================================
+            # BUY SETUP - V1.2 FILTER
+            # =================================
 
-trend_ok = ema20 > ema50
+            trend_ok = ema20 > ema50
 
-momentum_ok = macd > macd_signal
+            momentum_ok = macd > macd_signal
 
-rsi_ok = 55 < rsi < 70
+            rsi_ok = 55 < rsi < 70
 
-price_ok = close > vwap
+            price_ok = close > vwap
 
-# Stronger confirmation
-buy_setup = (
-    trend_ok
-    and momentum_ok
-    and rsi_ok
-    and price_ok
-)
+            buy_setup = (
+                trend_ok
+                and momentum_ok
+                and rsi_ok
+                and price_ok
+            )
 
-if not buy_setup:
-    continue
+            if not buy_setup:
+                continue
 
             # =================================
             # ENTRY
@@ -126,11 +125,19 @@ if not buy_setup:
 
             entry_index = None
 
-            for j in range(i + 1, len(data)):
+            end_search = min(
+                i + self.lookahead_days,
+                len(data)
+            )
+
+            for j in range(i + 1, end_search):
 
                 candle = data.iloc[j]
 
-                high = float(candle["High"])
+                try:
+                    high = float(candle["High"])
+                except (TypeError, ValueError):
+                    continue
 
                 if high >= entry:
 
@@ -145,8 +152,11 @@ if not buy_setup:
             # =================================
 
             status = "OPEN"
+
             exit_price = None
+
             exit_date = None
+
             target_hit = "NONE"
 
             end_index = min(
@@ -161,8 +171,14 @@ if not buy_setup:
 
                 candle = data.iloc[j]
 
-                low = float(candle["Low"])
-                high = float(candle["High"])
+                try:
+
+                    low = float(candle["Low"])
+
+                    high = float(candle["High"])
+
+                except (TypeError, ValueError):
+                    continue
 
                 # =================================
                 # STOP LOSS
@@ -171,8 +187,11 @@ if not buy_setup:
                 if low <= stoploss:
 
                     status = "LOSS"
+
                     exit_price = stoploss
+
                     exit_date = candle.name
+
                     target_hit = "NONE"
 
                     break
@@ -184,8 +203,11 @@ if not buy_setup:
                 if high >= target3:
 
                     status = "WIN"
+
                     exit_price = target3
+
                     exit_date = candle.name
+
                     target_hit = "TARGET3"
 
                     break
@@ -197,8 +219,11 @@ if not buy_setup:
                 if high >= target2:
 
                     status = "WIN"
+
                     exit_price = target2
+
                     exit_date = candle.name
+
                     target_hit = "TARGET2"
 
                     break
@@ -210,8 +235,11 @@ if not buy_setup:
                 if high >= target1:
 
                     status = "WIN"
+
                     exit_price = target1
+
                     exit_date = candle.name
+
                     target_hit = "TARGET1"
 
                     break
@@ -221,6 +249,7 @@ if not buy_setup:
             # =================================
 
             pnl = 0.0
+
             pnl_percent = 0.0
 
             if exit_price is not None:
@@ -241,36 +270,50 @@ if not buy_setup:
 
             results.append({
 
-                "Date": data.iloc[entry_index].name,
+                "Date":
+                    data.iloc[entry_index].name,
 
-                "Entry": entry,
+                "Entry":
+                    entry,
 
-                "CurrentPrice": close,
+                "CurrentPrice":
+                    close,
 
-                "StopLoss": stoploss,
+                "StopLoss":
+                    stoploss,
 
-                "Target1": target1,
+                "Target1":
+                    target1,
 
-                "Target2": target2,
+                "Target2":
+                    target2,
 
-                "Target3": target3,
+                "Target3":
+                    target3,
 
-                "RR": round(
-                    (target2 - entry) / risk,
-                    2
-                ),
+                "RR":
+                    round(
+                        (target2 - entry) / risk,
+                        2
+                    ),
 
-                "ExitPrice": exit_price,
+                "ExitPrice":
+                    exit_price,
 
-                "ExitDate": exit_date,
+                "ExitDate":
+                    exit_date,
 
-                "TargetHit": target_hit,
+                "TargetHit":
+                    target_hit,
 
-                "Status": status,
+                "Status":
+                    status,
 
-                "PnL": pnl,
+                "PnL":
+                    pnl,
 
-                "PnLPercent": pnl_percent
+                "PnLPercent":
+                    pnl_percent
             })
 
         return self.summary(results)
@@ -335,11 +378,8 @@ if not buy_setup:
         # =====================================
 
         profits = [
-
             trade["PnL"]
-
             for trade in results
-
             if trade["PnL"] > 0
         ]
 
@@ -359,11 +399,8 @@ if not buy_setup:
         # =====================================
 
         losses_list = [
-
             trade["PnL"]
-
             for trade in results
-
             if trade["PnL"] < 0
         ]
 
@@ -404,7 +441,9 @@ if not buy_setup:
         # =====================================
 
         equity = 0.0
+
         peak = 0.0
+
         max_drawdown = 0.0
 
         for trade in results:
