@@ -95,7 +95,7 @@ class StockScanner:
             "RR": trade["RR"],
         })
 
-        # ==========================================
+            # ==========================================
     # Run Scanner
     # ==========================================
 
@@ -112,6 +112,7 @@ class StockScanner:
                 st.write(f"Error in: {symbol}")
                 st.code(traceback.format_exc())
 
+        # Scanner Results
         self.results = pd.DataFrame(self.results)
 
         print(self.results)
@@ -128,27 +129,42 @@ class StockScanner:
 
         backtest_results = {}
 
-for symbol, data in self.market_data.items():
+        for symbol, data in self.market_data.items():
 
-    if not data.empty:
+            if data.empty:
+                continue
 
-        bt_data, _ = self.indicator_engine.process(
-            data.copy()
-        )
+            try:
 
-        # Run Backtest
-        raw_report = self.backtest.run(bt_data)
+                bt_data, _ = self.indicator_engine.process(
+                    data.copy()
+                )
 
-        # Analyze Backtest
-        analysis = self.backtest_analyzer.analyze(
-            raw_report
-        )
+                raw_report = self.backtest.run(
+                    bt_data
+                )
 
-        backtest_results[symbol] = analysis
+                analysis = self.backtest_analyzer.analyze(
+                    raw_report
+                )
+
+                backtest_results[symbol] = analysis
+
+            except Exception:
+
+                st.write(
+                    f"Backtest Error: {symbol}"
+                )
+
+                st.code(
+                    traceback.format_exc()
+                )
+
+        self.backtest_results = backtest_results
+
+        return self.results
 
 
-self.backtest_results = backtest_results
-        
     # ==========================================
     # Dashboard
     # ==========================================
@@ -165,14 +181,25 @@ self.backtest_results = backtest_results
             return
 
         print("\n========== TOP BUY ==========")
-        print(self.dashboard.top_buy(self.results))
+        print(
+            self.dashboard.top_buy(
+                self.results
+            )
+        )
 
-      
         print("\n========== TOP SELL ==========")
-        print(self.dashboard.top_sell(self.results))
+        print(
+            self.dashboard.top_sell(
+                self.results
+            )
+        )
 
         print("\n========== SUMMARY ==========")
-        print(self.dashboard.summary(self.results))
+        print(
+            self.dashboard.summary(
+                self.results
+            )
+        )
 
       # ==========================================
     # Send Alerts
