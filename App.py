@@ -195,11 +195,9 @@ class StockScanner:
                     )
                 )
 
-                analysis = (
-                    self.backtest_analyzer.analyze(
-                        raw_report
-                    )
-                )
+                raw_report = self.backtest.run(bt_data)
+
+backtest_results[symbol] = raw_report
 
                 backtest_results[
                     symbol
@@ -443,7 +441,7 @@ if __name__ == "__main__":
         )
 
 
-    # ==========================================
+        # ==========================================
     # OVERALL BACKTEST DASHBOARD
     # ==========================================
 
@@ -451,75 +449,102 @@ if __name__ == "__main__":
         "📊 Overall Backtest Dashboard"
     )
 
-
     all_reports = []
 
+    for symbol, report in scanner.backtest_results.items():
 
-    for symbol, report in (
-        scanner.backtest_results.items()
-    ):
+        if not isinstance(report, dict):
+            continue
 
-        if isinstance(report, dict):
+        # --------------------------------------
+        # SAFE METRICS
+        # --------------------------------------
 
-            all_reports.append({
+        trades = int(report.get("Total Trades", 0) or 0)
+        wins = int(report.get("Wins", 0) or 0)
+        losses = int(report.get("Losses", 0) or 0)
+        opens = int(report.get("Open", 0) or 0)
 
-                "Symbol": symbol,
+        closed = wins + losses
 
-                "Trades": report.get(
-                    "Total Trades",
-                    0
-                ),
+        pnl = float(report.get("Total PnL", 0) or 0)
+        profit_factor = float(
+            report.get("Profit Factor", 0) or 0
+        )
+        max_drawdown = float(
+            report.get("Max Drawdown", 0) or 0
+        )
 
-                "Wins": report.get(
-                    "Wins",
-                    0
-                ),
+        # --------------------------------------
+        # SANITY CHECK
+        # --------------------------------------
 
-                "Losses": report.get(
-                    "Losses",
-                    0
-                ),
+        # Trade count should never be lower
+        # than WIN + LOSS + OPEN
+        calculated_trades = wins + losses + opens
 
-                "Open": report.get(
-                    "Open",
-                    0
-                ),
+        if trades < calculated_trades:
+            trades = calculated_trades
 
-                "Win Rate": report.get(
-                    "Win Rate",
-                    0
-                ),
+        # --------------------------------------
+        # WIN RATE
+        # --------------------------------------
 
-                "PnL": report.get(
-                    "Total PnL",
-                    0
-                ),
+        win_rate = (
+            round((wins / closed) * 100, 2)
+            if closed > 0
+            else 0.0
+        )
 
-                "Profit Factor": report.get(
-                    "Profit Factor",
-                    0
-                ),
+        all_reports.append({
 
-                "Max Drawdown": report.get(
-                    "Max Drawdown",
-                    0
-                ),
+            "Symbol": symbol,
 
-                "Target1": report.get(
+            "Trades": trades,
+
+            "Wins": wins,
+
+            "Losses": losses,
+
+            "Open": opens,
+
+            "Closed": closed,
+
+            "Win Rate": win_rate,
+
+            "PnL": round(pnl, 2),
+
+            "Profit Factor": round(
+                profit_factor,
+                2
+            ),
+
+            "Max Drawdown": round(
+                max_drawdown,
+                2
+            ),
+
+            "Target1": int(
+                report.get(
                     "Target1 Wins",
                     0
-                ),
+                ) or 0
+            ),
 
-                "Target2": report.get(
+            "Target2": int(
+                report.get(
                     "Target2 Wins",
                     0
-                ),
+                ) or 0
+            ),
 
-                "Target3": report.get(
+            "Target3": int(
+                report.get(
                     "Target3 Wins",
                     0
-                )
-            })
+                ) or 0
+            )
+        })
 
 
     overall_df = pd.DataFrame(
@@ -554,12 +579,10 @@ if __name__ == "__main__":
             2
         )
 
-
         closed_trades = (
             total_wins +
             total_losses
         )
-
 
         overall_win_rate = (
 
@@ -573,7 +596,7 @@ if __name__ == "__main__":
 
             if closed_trades > 0
 
-            else 0
+            else 0.0
         )
 
 
@@ -585,24 +608,20 @@ if __name__ == "__main__":
             st.columns(4)
         )
 
-
         col1.metric(
             "Total Trades",
             total_trades
         )
-
 
         col2.metric(
             "Wins",
             total_wins
         )
 
-
         col3.metric(
             "Losses",
             total_losses
         )
-
 
         col4.metric(
             "Overall Win Rate",
@@ -614,12 +633,10 @@ if __name__ == "__main__":
             st.columns(3)
         )
 
-
         col5.metric(
             "Total P&L",
             total_pnl
         )
-
 
         col6.metric(
             "Open Trades",
@@ -627,12 +644,27 @@ if __name__ == "__main__":
         )
 
 
-        best_stock = (
-            overall_df.loc[
-                overall_df["PnL"].idxmax(),
-                "Symbol"
-            ]
-        )
+        # ======================================
+        # BEST STOCK
+        # ONLY STOCKS WITH CLOSED TRADES
+        # ======================================
+
+        valid_best = overall_df[
+            overall_df["Closed"] > 0
+        ].copy()
+
+        if not valid_best.empty:
+
+            best_stock = (
+                valid_best.loc[
+                    valid_best["PnL"].idxmax(),
+                    "Symbol"
+                ]
+            )
+
+        else:
+
+            best_stock = "N/A"
 
 
         col7.metric(
@@ -642,245 +674,284 @@ if __name__ == "__main__":
 
 
         # ======================================
-        # V1.3 RISK ADJUSTED RANKING
+        # RISK ADJUSTED RANKING
         # ======================================
 
-        ranking_df = (
-            overall_df.copy()
-        )
+        ranking_df = overall_df.copy()
 
 
-        # Closed trades
-        ranking_df["Closed"] = (
-            ranking_df["Wins"] +
-            ranking_df["Losses"]
-        )
+        # --------------------------------------
+        # IMPORTANT:
+        # Remove stocks having NO CLOSED TRADES
+        # --------------------------------------
+
+        ranking_df = ranking_df[
+            ranking_df["Closed"] > 0
+        ].copy()
 
 
-        # ======================================
-        # Adjusted Win Rate
-        # ======================================
+        if not ranking_df.empty:
 
-        ranking_df["Adjusted Win Rate"] = (
+            # ==================================
+            # ADJUSTED WIN RATE
+            # ==================================
 
-            ranking_df.apply(
+            ranking_df["Adjusted Win Rate"] = (
 
-                lambda row:
+                ranking_df.apply(
 
-                round(
-                    (
-                        row["Wins"] /
-                        row["Closed"]
-                    ) * 100,
-                    2
+                    lambda row:
+
+                    round(
+                        (
+                            row["Wins"] /
+                            row["Closed"]
+                        ) * 100,
+                        2
+                    )
+
+                    if row["Closed"] > 0
+
+                    else 0.0,
+
+                    axis=1
                 )
-
-                if row["Closed"] > 0
-
-                else 0,
-
-                axis=1
             )
-        )
 
 
-        # ======================================
-        # Drawdown Penalty
-        # ======================================
+            # ==================================
+            # DRAW DOWN PENALTY
+            # ==================================
 
-        ranking_df["Drawdown Penalty"] = (
-            ranking_df["Max Drawdown"].abs()
-        )
-
-
-        # ======================================
-        # SCORE
-        #
-        # PnL        = 40%
-        # Win Rate   = 25%
-        # PF         = 20%
-        # Drawdown   = 15%
-        # ======================================
-
-        pnl_max = (
-            ranking_df["PnL"].abs().max()
-        )
-
-        if pnl_max == 0:
-            pnl_max = 1
-
-
-        ranking_df["PnL Score"] = (
-
-            ranking_df["PnL"] /
-            pnl_max
-        ) * 40
-
-
-        ranking_df["Win Score"] = (
-
-            ranking_df[
-                "Adjusted Win Rate"
-            ] / 100
-        ) * 25
-
-
-        ranking_df["PF Score"] = (
-
-            ranking_df[
-                "Profit Factor"
-            ].clip(
-                lower=0,
-                upper=5
-            ) / 5
-        ) * 20
-
-
-        dd_max = (
             ranking_df[
                 "Drawdown Penalty"
-            ].max()
-        )
+            ] = (
+                ranking_df[
+                    "Max Drawdown"
+                ].abs()
+            )
 
 
-        if dd_max == 0:
-            dd_max = 1
+            # ==================================
+            # PNL SCORE
+            # ==================================
+
+            pnl_range = (
+                ranking_df["PnL"].abs().max()
+            )
+
+            if pnl_range <= 0:
+                pnl_range = 1.0
 
 
-        ranking_df["DD Score"] = (
+            ranking_df["PnL Score"] = (
 
-            1 -
+                ranking_df["PnL"] /
+                pnl_range
+            ) * 40
 
-            (
+
+            # ==================================
+            # WIN RATE SCORE
+            # ==================================
+
+            ranking_df["Win Score"] = (
+
+                ranking_df[
+                    "Adjusted Win Rate"
+                ] / 100
+            ) * 25
+
+
+            # ==================================
+            # PROFIT FACTOR SCORE
+            # ==================================
+
+            ranking_df["PF Score"] = (
+
+                ranking_df[
+                    "Profit Factor"
+                ].clip(
+                    lower=0,
+                    upper=5
+                ) / 5
+            ) * 20
+
+
+            # ==================================
+            # DRAWDOWN SCORE
+            # ==================================
+
+            dd_max = (
                 ranking_df[
                     "Drawdown Penalty"
-                ] / dd_max
+                ].max()
             )
 
-        ) * 15
+            if dd_max <= 0:
+                dd_max = 1.0
 
 
-        ranking_df["Overall Score"] = (
+            ranking_df["DD Score"] = (
 
-            ranking_df["PnL Score"] +
+                1 -
 
-            ranking_df["Win Score"] +
+                (
+                    ranking_df[
+                        "Drawdown Penalty"
+                    ] / dd_max
+                )
 
-            ranking_df["PF Score"] +
-
-            ranking_df["DD Score"]
-        )
+            ) * 15
 
 
-        ranking_df["Overall Score"] = (
+            # ==================================
+            # FINAL SCORE
+            # ==================================
+
+            ranking_df["Overall Score"] = (
+
+                ranking_df["PnL Score"]
+
+                + ranking_df["Win Score"]
+
+                + ranking_df["PF Score"]
+
+                + ranking_df["DD Score"]
+            )
+
+
             ranking_df[
                 "Overall Score"
-            ].round(2)
-        )
-
-
-        # ======================================
-        # RATING
-        # ======================================
-
-        def get_rating(score):
-
-            if score >= 60:
-                return "🟢 BEST"
-
-            elif score >= 35:
-                return "🟡 WATCH"
-
-            else:
-                return "🔴 AVOID"
-
-
-        ranking_df["Rating"] = (
-            ranking_df[
-                "Overall Score"
-            ].apply(get_rating)
-        )
-
-
-        # ======================================
-        # FINAL RANKING
-        # ======================================
-
-        ranking_df = (
-
-            ranking_df.sort_values(
-
-                by="Overall Score",
-
-                ascending=False
+            ] = (
+                ranking_df[
+                    "Overall Score"
+                ].round(2)
             )
 
-            .reset_index(drop=True)
-        )
+
+            # ==================================
+            # RATING
+            # ==================================
+
+            def get_rating(score):
+
+                if score >= 60:
+                    return "🟢 BEST"
+
+                elif score >= 35:
+                    return "🟡 WATCH"
+
+                else:
+                    return "🔴 AVOID"
 
 
-        ranking_df.insert(
-
-            0,
-
-            "Rank",
-
-            range(
-                1,
-                len(ranking_df) + 1
+            ranking_df["Rating"] = (
+                ranking_df[
+                    "Overall Score"
+                ].apply(
+                    get_rating
+                )
             )
-        )
 
 
-        st.subheader(
-            "🏆 V1.3 Risk-Adjusted Stock Ranking"
-        )
+            # ==================================
+            # SORT
+            # ==================================
+
+            ranking_df = (
+
+                ranking_df.sort_values(
+
+                    by=[
+                        "Overall Score",
+                        "PnL",
+                        "Profit Factor"
+                    ],
+
+                    ascending=[
+                        False,
+                        False,
+                        False
+                    ]
+                )
+
+                .reset_index(drop=True)
+            )
 
 
-        display_columns = [
+            ranking_df.insert(
 
-            "Rank",
+                0,
 
-            "Symbol",
+                "Rank",
 
-            "Rating",
-
-            "Overall Score",
-
-            "Trades",
-
-            "Wins",
-
-            "Losses",
-
-            "Open",
-
-            "Adjusted Win Rate",
-
-            "PnL",
-
-            "Profit Factor",
-
-            "Max Drawdown",
-
-            "Target1",
-
-            "Target2",
-
-            "Target3"
-        ]
+                range(
+                    1,
+                    len(ranking_df) + 1
+                )
+            )
 
 
-        st.dataframe(
+            # ==================================
+            # DISPLAY
+            # ==================================
 
-            ranking_df[
-                display_columns
-            ],
+            st.subheader(
+                "🏆 V1.3 Risk-Adjusted Stock Ranking"
+            )
 
-            use_container_width=True,
 
-            hide_index=True
-        )
+            display_columns = [
+
+                "Rank",
+
+                "Symbol",
+
+                "Rating",
+
+                "Overall Score",
+
+                "Trades",
+
+                "Wins",
+
+                "Losses",
+
+                "Open",
+
+                "Adjusted Win Rate",
+
+                "PnL",
+
+                "Profit Factor",
+
+                "Max Drawdown",
+
+                "Target1",
+
+                "Target2",
+
+                "Target3"
+            ]
+
+
+            st.dataframe(
+
+                ranking_df[
+                    display_columns
+                ],
+
+                use_container_width=True,
+
+                hide_index=True
+            )
+
+        else:
+
+            st.info(
+                "No closed backtest trades available for ranking."
+            )
 
 
     else:
@@ -912,70 +983,101 @@ if __name__ == "__main__":
 
             st.write({
 
-                "Total Trades": report.get(
-                    "Total Trades",
-                    0
-                ),
+                "Total Trades":
+                    report.get(
+                        "Total Trades",
+                        0
+                    ),
 
-                "Wins": report.get(
-                    "Wins",
-                    0
-                ),
+                "Wins":
+                    report.get(
+                        "Wins",
+                        0
+                    ),
 
-                "Losses": report.get(
-                    "Losses",
-                    0
-                ),
+                "Losses":
+                    report.get(
+                        "Losses",
+                        0
+                    ),
 
-                "Open": report.get(
-                    "Open",
-                    0
-                ),
+                "Open":
+                    report.get(
+                        "Open",
+                        0
+                    ),
 
-                "Win Rate": report.get(
-                    "Win Rate",
-                    0
-                ),
+                "Win Rate":
+                    report.get(
+                        "Win Rate",
+                        0
+                    ),
 
-                "Total PnL": report.get(
-                    "Total PnL",
-                    0
-                ),
+                "Total PnL":
+                    report.get(
+                        "Total PnL",
+                        0
+                    ),
 
-                "Average Profit": report.get(
-                    "Average Profit",
-                    0
-                ),
+                "Average Profit":
+                    report.get(
+                        "Average Profit",
+                        0
+                    ),
 
-                "Average Loss": report.get(
-                    "Average Loss",
-                    0
-                ),
+                "Average Loss":
+                    report.get(
+                        "Average Loss",
+                        0
+                    ),
 
-                "Profit Factor": report.get(
-                    "Profit Factor",
-                    0
-                ),
+                "Profit Factor":
+                    report.get(
+                        "Profit Factor",
+                        0
+                    ),
 
-                "Max Drawdown": report.get(
-                    "Max Drawdown",
-                    0
-                ),
+                "Expectancy":
+                    report.get(
+                        "Expectancy",
+                        0
+                    ),
 
-                "Target1 Wins": report.get(
-                    "Target1 Wins",
-                    0
-                ),
+                "Average R":
+                    report.get(
+                        "Average R",
+                        0
+                    ),
 
-                "Target2 Wins": report.get(
-                    "Target2 Wins",
-                    0
-                ),
+                "Max Drawdown":
+                    report.get(
+                        "Max Drawdown",
+                        0
+                    ),
 
-                "Target3 Wins": report.get(
-                    "Target3 Wins",
-                    0
-                )
+                "Target1 Wins":
+                    report.get(
+                        "Target1 Wins",
+                        0
+                    ),
+
+                "Target2 Wins":
+                    report.get(
+                        "Target2 Wins",
+                        0
+                    ),
+
+                "Target3 Wins":
+                    report.get(
+                        "Target3 Wins",
+                        0
+                    ),
+
+                "Risk Adjusted Score":
+                    report.get(
+                        "Risk Adjusted Score",
+                        0
+                    )
             })
 
 
