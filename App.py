@@ -96,7 +96,7 @@ class StockScanner:
     # Run Scanner
     # ==========================================
 
-    def run(self):
+        def run(self):
 
         self.load_market()
 
@@ -109,7 +109,7 @@ class StockScanner:
                 st.write(f"Error in: {symbol}")
                 st.code(traceback.format_exc())
 
-        self.results =           pd.DataFrame(self.results)
+        self.results = pd.DataFrame(self.results)
 
         print(self.results)
         print(self.results.columns)
@@ -119,23 +119,27 @@ class StockScanner:
         print("Columns:", self.results.columns.tolist())
         print(self.results)
 
+        # ======================================
+        # BACKTEST
+        # ======================================
+
         backtest_results = {}
 
-for symbol, data in self.market_data.items():
+        for symbol, data in self.market_data.items():
 
-    if not data.empty:
+            if not data.empty:
 
-        bt_data, _ = self.indicator_engine.process(
-            data.copy()
-        )
+                bt_data, _ = self.indicator_engine.process(
+                    data.copy()
+                )
 
-        backtest_results[symbol] = self.backtest.run(
-            bt_data
-        )
+                backtest_results[symbol] = self.backtest.run(
+                    bt_data
+                )
 
-self.backtest_results = backtest_results
+        self.backtest_results = backtest_results
 
-return self.results
+        return self.results
         
     # ==========================================
     # Dashboard
