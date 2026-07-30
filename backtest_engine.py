@@ -1,113 +1,56 @@
-import math
-
+# ============================================
+# AI STOCK SCANNER V1.3
+# ROBUST BACKTEST ENGINE
+# ============================================
 
 class BacktestEngine:
 
     def __init__(self):
+
         self.lookahead_days = 15
         self.risk_per_trade = 0.01
         self.min_trades_for_ranking = 3
 
-        # Risk : Reward
-        self.target1_rr = 1.5
-        self.target2_rr = 2.5
-        self.target3_rr = 4.0
-
-        # ATR settings
+        # Entry / risk settings
         self.entry_atr = 0.25
         self.stop_atr = 1.5
 
-        # Starting capital
-        self.starting_capital = 100000
+        # BUY RSI range
+        self.buy_rsi_min = 50
+        self.buy_rsi_max = 72
+
+        # SELL RSI range
+        self.sell_rsi_min = 28
+        self.sell_rsi_max = 50
+
+        # Debug information
+        self.diagnostics = {}
 
     # =========================================
-    # POSITION SIZE
+    # SAFE FLOAT
     # =========================================
 
-    def position_size(self, entry, stoploss, capital):
-
-        risk_amount = capital * self.risk_per_trade
-
-        risk_per_share = abs(entry - stoploss)
-
-        if risk_per_share <= 0:
-            return 0
-
-        quantity = math.floor(
-            risk_amount / risk_per_share
-        )
-
-        return max(quantity, 1)
-
-    # =========================================
-    # BUY SETUP
-    # =========================================
-
-    def buy_setup(self, row):
+    def safe_float(self, value):
 
         try:
+            if value is None:
+                return None
 
-            ema20 = float(row["EMA20"])
-            ema50 = float(row["EMA50"])
-            rsi = float(row["RSI"])
-            macd = float(row["MACD"])
-            macd_signal = float(row["MACD_SIGNAL"])
-            close = float(row["Close"])
-            vwap = float(row["VWAP"])
+            value = float(value)
 
-        except (TypeError, ValueError):
+            if value != value:       # NaN
+                return None
 
-            return False
-
-        return (
-            ema20 > ema50
-            and macd > macd_signal
-            and 55 < rsi < 70
-            and close > vwap
-        )
-
-    # =========================================
-    # SELL SETUP
-    # =========================================
-
-    def sell_setup(self, row):
-
-        try:
-
-            ema20 = float(row["EMA20"])
-            ema50 = float(row["EMA50"])
-            rsi = float(row["RSI"])
-            macd = float(row["MACD"])
-            macd_signal = float(row["MACD_SIGNAL"])
-            close = float(row["Close"])
-            vwap = float(row["VWAP"])
+            return value
 
         except (TypeError, ValueError):
-
-            return False
-
-        return (
-            ema20 < ema50
-            and macd < macd_signal
-            and 30 < rsi < 45
-            and close < vwap
-        )
+            return None
 
     # =========================================
-    # BACKTEST
+    # CHECK REQUIRED COLUMNS
     # =========================================
 
-    def run(self, data, capital=None):
-
-        results = []
-
-        if data is None or data.empty:
-            return self.summary(results)
-
-        data = data.copy()
-
-        if capital is None:
-            capital = self.starting_capital
+    def validate_columns(self, data):
 
         required = [
             "Close",
@@ -122,784 +65,906 @@ class BacktestEngine:
             "VWAP"
         ]
 
-        for column in required:
+        missing = [
+            col
+            for col in required
+            if col not in data.columns
+        ]
 
-            if column not in data.columns:
-                return self.summary(results)
+        return missing
+
+    # =========================================
+    # CREATE DIAGNOSTICS
+    # =========================================
+
+    def create_diagnostics(self):
+
+        return {
+
+            "Rows": 0,
+
+            "ValidRows": 0,
+
+            "TrendBuy": 0,
+
+            "MomentumBuy": 0,
+
+            "RSIBuy": 0,
+
+            "VWAPBuy": 0,
+
+            "FinalBuySetup": 0,
+
+            "BuyEntryTriggered": 0,
+
+            "TrendSell": 0,
+
+            "MomentumSell": 0,
+
+            "RSISell": 0,
+
+            "VWAPSell": 0,
+
+            "FinalSellSetup": 0,
+
+            "SellEntryTriggered": 0,
+
+            "TotalSetups": 0,
+
+            "TotalEntries": 0
+        }
+
+    # =========================================
+    # PROCESS ONE TRADE
+    # =========================================
+
+    def simulate_trade(
+        self,
+        data,
+        signal_index,
+        direction
+    ):
+
+        row = data.iloc[signal_index]
+
+        close = self.safe_float(row["Close"])
+        atr = self.safe_float(row["ATR"])
+
+        if close is None or atr is None:
+            return None
+
+        if close <= 0 or atr <= 0:
+            return None
+
+        # =====================================
+        # ENTRY
+        # =====================================
+
+        if direction == "BUY":
+
+            entry = round(
+                close + atr * self.entry_atr,
+                2
+            )
+
+            stoploss = round(
+                entry - atr * self.stop_atr,
+                2
+            )
+
+        else:
+
+            entry = round(
+                close - atr * self.entry_atr,
+                2
+            )
+
+            stoploss = round(
+                entry + atr * self.stop_atr,
+                2
+            )
+
+        risk = abs(
+            entry - stoploss
+        )
+
+        if risk <= 0:
+            return None
+
+        # =====================================
+        # TARGETS
+        # =====================================
+
+        if direction == "BUY":
+
+            target1 = round(
+                entry + risk * 1.5,
+                2
+            )
+
+            target2 = round(
+                entry + risk * 2.5,
+                2
+            )
+
+            target3 = round(
+                entry + risk * 4.0,
+                2
+            )
+
+        else:
+
+            target1 = round(
+                entry - risk * 1.5,
+                2
+            )
+
+            target2 = round(
+                entry - risk * 2.5,
+                2
+            )
+
+            target3 = round(
+                entry - risk * 4.0,
+                2
+            )
+
+        # =====================================
+        # FIND ENTRY
+        # =====================================
+
+        entry_index = None
+
+        for j in range(
+            signal_index + 1,
+            len(data)
+        ):
+
+            candle = data.iloc[j]
+
+            high = self.safe_float(
+                candle["High"]
+            )
+
+            low = self.safe_float(
+                candle["Low"]
+            )
+
+            if high is None or low is None:
+                continue
+
+            if direction == "BUY":
+
+                if high >= entry:
+
+                    entry_index = j
+                    break
+
+            else:
+
+                if low <= entry:
+
+                    entry_index = j
+                    break
+
+        if entry_index is None:
+            return None
+
+        # =====================================
+        # TRADE MANAGEMENT
+        # =====================================
+
+        status = "OPEN"
+
+        exit_price = None
+        exit_date = None
+        target_hit = "NONE"
+
+        highest_price = entry
+        lowest_price = entry
+
+        end_index = min(
+            entry_index + self.lookahead_days,
+            len(data)
+        )
+
+        if end_index <= entry_index:
+            return None
+
+        last_index = end_index - 1
+
+        for j in range(
+            entry_index,
+            end_index
+        ):
+
+            candle = data.iloc[j]
+
+            high = self.safe_float(
+                candle["High"]
+            )
+
+            low = self.safe_float(
+                candle["Low"]
+            )
+
+            if high is None or low is None:
+                continue
+
+            highest_price = max(
+                highest_price,
+                high
+            )
+
+            lowest_price = min(
+                lowest_price,
+                low
+            )
+
+            # =================================
+            # BUY TRADE
+            # =================================
+
+            if direction == "BUY":
+
+                # Conservative rule:
+                # SL checked before targets
+
+                if low <= stoploss:
+
+                    status = "LOSS"
+                    exit_price = stoploss
+                    exit_date = candle.name
+                    target_hit = "NONE"
+
+                    break
+
+                if high >= target3:
+
+                    status = "WIN"
+                    exit_price = target3
+                    exit_date = candle.name
+                    target_hit = "TARGET3"
+
+                    break
+
+                if high >= target2:
+
+                    status = "WIN"
+                    exit_price = target2
+                    exit_date = candle.name
+                    target_hit = "TARGET2"
+
+                    break
+
+                if high >= target1:
+
+                    status = "WIN"
+                    exit_price = target1
+                    exit_date = candle.name
+                    target_hit = "TARGET1"
+
+                    break
+
+            # =================================
+            # SELL TRADE
+            # =================================
+
+            else:
+
+                # Conservative:
+                # SL checked before targets
+
+                if high >= stoploss:
+
+                    status = "LOSS"
+                    exit_price = stoploss
+                    exit_date = candle.name
+                    target_hit = "NONE"
+
+                    break
+
+                if low <= target3:
+
+                    status = "WIN"
+                    exit_price = target3
+                    exit_date = candle.name
+                    target_hit = "TARGET3"
+
+                    break
+
+                if low <= target2:
+
+                    status = "WIN"
+                    exit_price = target2
+                    exit_date = candle.name
+                    target_hit = "TARGET2"
+
+                    break
+
+                if low <= target1:
+
+                    status = "WIN"
+                    exit_price = target1
+                    exit_date = candle.name
+                    target_hit = "TARGET1"
+
+                    break
+
+        # =====================================
+        # OPEN TRADE
+        # =====================================
+
+        if status == "OPEN":
+
+            mark_price = self.safe_float(
+                data.iloc[last_index]["Close"]
+            )
+
+            if mark_price is None:
+                mark_price = close
+
+            current_price = mark_price
+
+            if direction == "BUY":
+
+                unrealized_pnl = (
+                    current_price - entry
+                )
+
+            else:
+
+                unrealized_pnl = (
+                    entry - current_price
+                )
+
+            unrealized_pnl = round(
+                unrealized_pnl,
+                2
+            )
+
+        else:
+
+            unrealized_pnl = 0.0
+            current_price = exit_price
+
+        # =====================================
+        # REALIZED PNL
+        # =====================================
+
+        pnl = 0.0
+
+        pnl_percent = 0.0
+
+        r_multiple = 0.0
+
+        if exit_price is not None:
+
+            if direction == "BUY":
+
+                pnl = (
+                    exit_price - entry
+                )
+
+            else:
+
+                pnl = (
+                    entry - exit_price
+                )
+
+            pnl = round(
+                pnl,
+                2
+            )
+
+            pnl_percent = round(
+                (
+                    pnl / entry
+                ) * 100,
+                2
+            )
+
+            r_multiple = round(
+                pnl / risk,
+                2
+            )
+
+        else:
+
+            r_multiple = round(
+                unrealized_pnl / risk,
+                2
+            )
+
+        # =====================================
+        # MFE / MAE
+        # =====================================
+
+        if direction == "BUY":
+
+            mfe = (
+                highest_price - entry
+            )
+
+            mae = (
+                lowest_price - entry
+            )
+
+        else:
+
+            mfe = (
+                entry - lowest_price
+            )
+
+            mae = (
+                entry - highest_price
+            )
+
+        mfe = round(
+            mfe,
+            2
+        )
+
+        mae = round(
+            mae,
+            2
+        )
+
+        mfe_r = round(
+            mfe / risk,
+            2
+        )
+
+        mae_r = round(
+            mae / risk,
+            2
+        )
+
+        # =====================================
+        # RESULT
+        # =====================================
+
+        return {
+
+            "Date":
+                data.iloc[entry_index].name,
+
+            "SignalDate":
+                row.name,
+
+            "Direction":
+                direction,
+
+            "Entry":
+                entry,
+
+            "CurrentPrice":
+                round(
+                    current_price,
+                    2
+                ),
+
+            "StopLoss":
+                stoploss,
+
+            "Target1":
+                target1,
+
+            "Target2":
+                target2,
+
+            "Target3":
+                target3,
+
+            "RR":
+                round(
+                    2.5,
+                    2
+                ),
+
+            "RiskPerTrade":
+                self.risk_per_trade,
+
+            "Quantity":
+                1,
+
+            "ExitPrice":
+                exit_price,
+
+            "ExitDate":
+                exit_date,
+
+            "TargetHit":
+                target_hit,
+
+            "Status":
+                status,
+
+            "PnL":
+                pnl,
+
+            "UnrealizedPnL":
+                unrealized_pnl,
+
+            "TotalPnL":
+                round(
+                    pnl + unrealized_pnl,
+                    2
+                ),
+
+            "PnLPercent":
+                pnl_percent,
+
+            "RMultiple":
+                r_multiple,
+
+            "MFE":
+                mfe,
+
+            "MAE":
+                mae,
+
+            "MFE_R":
+                mfe_r,
+
+            "MAE_R":
+                mae_r
+        }
+
+    # =========================================
+    # BACKTEST
+    # =========================================
+
+    def run(self, data):
+
+        results = []
+
+        self.diagnostics = (
+            self.create_diagnostics()
+        )
+
+        if data is None or data.empty:
+
+            return self.summary(
+                results
+            )
+
+        data = data.copy()
+
+        self.diagnostics["Rows"] = len(
+            data
+        )
+
+        # =====================================
+        # NORMALIZE COLUMNS
+        # =====================================
+
+        if hasattr(
+            data.columns,
+            "levels"
+        ):
+
+            try:
+
+                data.columns = [
+                    str(col[0])
+                    if isinstance(
+                        col,
+                        tuple
+                    )
+                    else str(col)
+                    for col in data.columns
+                ]
+
+            except Exception:
+                pass
+
+        required = [
+            "Close",
+            "High",
+            "Low",
+            "EMA20",
+            "EMA50",
+            "RSI",
+            "MACD",
+            "MACD_SIGNAL",
+            "ATR",
+            "VWAP"
+        ]
+
+        missing = self.validate_columns(
+            data
+        )
+
+        if missing:
+
+            self.diagnostics[
+                "MissingColumns"
+            ] = missing
+
+            return self.summary(
+                results
+            )
+
+        # =====================================
+        # CLEAN
+        # =====================================
 
         data = data.dropna(
             subset=required
         ).copy()
 
-        if len(data) < 61:
-            return self.summary(results)
+        self.diagnostics[
+            "ValidRows"
+        ] = len(data)
 
-        next_available_index = 60
+        if len(data) < 61:
+
+            return self.summary(
+                results
+            )
 
         # =====================================
         # HISTORICAL SCAN
         # =====================================
 
-        for i in range(60, len(data) - 1):
+        next_available_index = 60
+
+        for i in range(
+            60,
+            len(data) - 1
+        ):
 
             if i < next_available_index:
                 continue
 
             row = data.iloc[i]
 
-            try:
-
-                close = float(row["Close"])
-                atr = float(row["ATR"])
-
-            except (TypeError, ValueError):
-
-                continue
-
-            if close <= 0 or atr <= 0:
-                continue
-
-            # =================================
-            # SIGNAL
-            # =================================
-
-            is_buy = self.buy_setup(row)
-
-            is_sell = self.sell_setup(row)
-
-            if not is_buy and not is_sell:
-                continue
-
-            signal = "BUY" if is_buy else "SELL"
-
-            # =================================
-            # ENTRY
-            # =================================
-
-            if signal == "BUY":
-
-                entry = round(
-                    close + atr * self.entry_atr,
-                    2
-                )
-
-                stoploss = round(
-                    entry - atr * self.stop_atr,
-                    2
-                )
-
-            else:
-
-                entry = round(
-                    close - atr * self.entry_atr,
-                    2
-                )
-
-                stoploss = round(
-                    entry + atr * self.stop_atr,
-                    2
-                )
-
-            risk_per_share = abs(
-                entry - stoploss
+            close = self.safe_float(
+                row["Close"]
             )
 
-            if risk_per_share <= 0:
-                continue
-
-            # =================================
-            # TARGETS
-            # =================================
-
-            if signal == "BUY":
-
-                target1 = round(
-                    entry + risk_per_share * self.target1_rr,
-                    2
-                )
-
-                target2 = round(
-                    entry + risk_per_share * self.target2_rr,
-                    2
-                )
-
-                target3 = round(
-                    entry + risk_per_share * self.target3_rr,
-                    2
-                )
-
-            else:
-
-                target1 = round(
-                    entry - risk_per_share * self.target1_rr,
-                    2
-                )
-
-                target2 = round(
-                    entry - risk_per_share * self.target2_rr,
-                    2
-                )
-
-                target3 = round(
-                    entry - risk_per_share * self.target3_rr,
-                    2
-                )
-
-            # =================================
-            # QUANTITY
-            # =================================
-
-            quantity = self.position_size(
-                entry,
-                stoploss,
-                capital
+            ema20 = self.safe_float(
+                row["EMA20"]
             )
 
-            if quantity <= 0:
-                continue
+            ema50 = self.safe_float(
+                row["EMA50"]
+            )
 
-            # =================================
-            # ENTRY TRIGGER
-            # =================================
+            rsi = self.safe_float(
+                row["RSI"]
+            )
 
-            entry_index = None
+            macd = self.safe_float(
+                row["MACD"]
+            )
 
-            for j in range(
-                i + 1,
-                len(data)
+            macd_signal = self.safe_float(
+                row["MACD_SIGNAL"]
+            )
+
+            atr = self.safe_float(
+                row["ATR"]
+            )
+
+            vwap = self.safe_float(
+                row["VWAP"]
+            )
+
+            if any(
+                x is None
+                for x in [
+                    close,
+                    ema20,
+                    ema50,
+                    rsi,
+                    macd,
+                    macd_signal,
+                    atr,
+                    vwap
+                ]
             ):
 
-                candle = data.iloc[j]
+                continue
 
-                try:
+            if (
+                close <= 0
+                or atr <= 0
+            ):
 
-                    high = float(candle["High"])
-                    low = float(candle["Low"])
+                continue
 
-                except (TypeError, ValueError):
+            # =================================
+            # BUY CONDITIONS
+            # =================================
+
+            trend_buy = (
+                ema20 > ema50
+            )
+
+            momentum_buy = (
+                macd > macd_signal
+            )
+
+            rsi_buy = (
+                self.buy_rsi_min
+                <= rsi
+                <= self.buy_rsi_max
+            )
+
+            vwap_buy = (
+                close > vwap
+            )
+
+            if trend_buy:
+                self.diagnostics[
+                    "TrendBuy"
+                ] += 1
+
+            if momentum_buy:
+                self.diagnostics[
+                    "MomentumBuy"
+                ] += 1
+
+            if rsi_buy:
+                self.diagnostics[
+                    "RSIBuy"
+                ] += 1
+
+            if vwap_buy:
+                self.diagnostics[
+                    "VWAPBuy"
+                ] += 1
+
+            buy_setup = (
+                trend_buy
+                and momentum_buy
+                and rsi_buy
+                and vwap_buy
+            )
+
+            if buy_setup:
+
+                self.diagnostics[
+                    "FinalBuySetup"
+                ] += 1
+
+                trade = self.simulate_trade(
+                    data,
+                    i,
+                    "BUY"
+                )
+
+                if trade is not None:
+
+                    results.append(
+                        trade
+                    )
+
+                    self.diagnostics[
+                        "BuyEntryTriggered"
+                    ] += 1
+
+                    next_available_index = (
+                        min(
+                            i + self.lookahead_days,
+                            len(data)
+                        )
+                    )
 
                     continue
 
-                if signal == "BUY":
-
-                    if high >= entry:
-                        entry_index = j
-                        break
-
-                else:
-
-                    if low <= entry:
-                        entry_index = j
-                        break
-
-            if entry_index is None:
-                continue
-
             # =================================
-            # TRADE MANAGEMENT
+            # SELL CONDITIONS
             # =================================
 
-            status = "OPEN"
-
-            exit_price = None
-            exit_date = None
-            target_hit = "NONE"
-
-            highest_price = entry
-            lowest_price = entry
-
-            end_index = min(
-                entry_index + self.lookahead_days,
-                len(data)
+            trend_sell = (
+                ema20 < ema50
             )
 
-            last_index = end_index - 1
+            momentum_sell = (
+                macd < macd_signal
+            )
 
-            for j in range(
-                entry_index,
-                end_index
-            ):
+            rsi_sell = (
+                self.sell_rsi_min
+                <= rsi
+                <= self.sell_rsi_max
+            )
 
-                candle = data.iloc[j]
+            vwap_sell = (
+                close < vwap
+            )
 
-                try:
+            if trend_sell:
+                self.diagnostics[
+                    "TrendSell"
+                ] += 1
 
-                    high = float(candle["High"])
-                    low = float(candle["Low"])
+            if momentum_sell:
+                self.diagnostics[
+                    "MomentumSell"
+                ] += 1
 
-                except (TypeError, ValueError):
+            if rsi_sell:
+                self.diagnostics[
+                    "RSISell"
+                ] += 1
+
+            if vwap_sell:
+                self.diagnostics[
+                    "VWAPSell"
+                ] += 1
+
+            sell_setup = (
+                trend_sell
+                and momentum_sell
+                and rsi_sell
+                and vwap_sell
+            )
+
+            if sell_setup:
+
+                self.diagnostics[
+                    "FinalSellSetup"
+                ] += 1
+
+                trade = self.simulate_trade(
+                    data,
+                    i,
+                    "SELL"
+                )
+
+                if trade is not None:
+
+                    results.append(
+                        trade
+                    )
+
+                    self.diagnostics[
+                        "SellEntryTriggered"
+                    ] += 1
+
+                    next_available_index = (
+                        min(
+                            i + self.lookahead_days,
+                            len(data)
+                        )
+                    )
 
                     continue
 
-                highest_price = max(
-                    highest_price,
-                    high
-                )
-
-                lowest_price = min(
-                    lowest_price,
-                    low
-                )
-
-                # =================================
-                # BUY MANAGEMENT
-                # =================================
-
-                if signal == "BUY":
-
-                    # Stop first
-                    if low <= stoploss:
-
-                        status = "LOSS"
-
-                        exit_price = stoploss
-
-                        exit_date = candle.name
-
-                        target_hit = "NONE"
-
-                        break
-
-                    # Target 3
-                    if high >= target3:
-
-                        status = "WIN"
-
-                        exit_price = target3
-
-                        exit_date = candle.name
-
-                        target_hit = "TARGET3"
-
-                        break
-
-                    # Target 2
-                    if high >= target2:
-
-                        status = "WIN"
-
-                        exit_price = target2
-
-                        exit_date = candle.name
-
-                        target_hit = "TARGET2"
-
-                        break
-
-                    # Target 1
-                    if high >= target1:
-
-                        status = "WIN"
-
-                        exit_price = target1
-
-                        exit_date = candle.name
-
-                        target_hit = "TARGET1"
-
-                        break
-
-                # =================================
-                # SELL MANAGEMENT
-                # =================================
-
-                else:
-
-                    # Stop first
-                    if high >= stoploss:
-
-                        status = "LOSS"
-
-                        exit_price = stoploss
-
-                        exit_date = candle.name
-
-                        target_hit = "NONE"
-
-                        break
-
-                    # Target 3
-                    if low <= target3:
-
-                        status = "WIN"
-
-                        exit_price = target3
-
-                        exit_date = candle.name
-
-                        target_hit = "TARGET3"
-
-                        break
-
-                    # Target 2
-                    if low <= target2:
-
-                        status = "WIN"
-
-                        exit_price = target2
-
-                        exit_date = candle.name
-
-                        target_hit = "TARGET2"
-
-                        break
-
-                    # Target 1
-                    if low <= target1:
-
-                        status = "WIN"
-
-                        exit_price = target1
-
-                        exit_date = candle.name
-
-                        target_hit = "TARGET1"
-
-                        break
-
-            # =================================
-            # OPEN TRADE
-            # =================================
-
-            if status == "OPEN":
-
-                try:
-
-                    mark_price = float(
-                        data.iloc[last_index]["Close"]
-                    )
-
-                except (TypeError, ValueError):
-
-                    mark_price = close
-
-                if signal == "BUY":
-
-                    unrealized_per_share = (
-                        mark_price - entry
-                    )
-
-                else:
-
-                    unrealized_per_share = (
-                        entry - mark_price
-                    )
-
-                unrealized_pnl = round(
-                    unrealized_per_share * quantity,
-                    2
-                )
-
-                current_price = mark_price
-
-            else:
-
-                unrealized_pnl = 0.0
-
-                current_price = close
-
-            # =================================
-            # REALIZED P&L
-            # =================================
-
-            pnl = 0.0
-
-            pnl_percent = 0.0
-
-            r_multiple = 0.0
-
-            if exit_price is not None:
-
-                if signal == "BUY":
-
-                    pnl_per_share = (
-                        exit_price - entry
-                    )
-
-                else:
-
-                    pnl_per_share = (
-                        entry - exit_price
-                    )
-
-                pnl = round(
-                    pnl_per_share * quantity,
-                    2
-                )
-
-                pnl_percent = round(
-                    (
-                        pnl /
-                        (entry * quantity)
-                    ) * 100,
-                    2
-                )
-
-                risk_amount = (
-                    risk_per_share *
-                    quantity
-                )
-
-                if risk_amount > 0:
-
-                    r_multiple = round(
-                        pnl /
-                        risk_amount,
-                        2
-                    )
-
-            else:
-
-                risk_amount = (
-                    risk_per_share *
-                    quantity
-                )
-
-                if risk_amount > 0:
-
-                    r_multiple = round(
-                        unrealized_pnl /
-                        risk_amount,
-                        2
-                    )
-
-            # =================================
-            # MFE / MAE
-            # =================================
-
-            if signal == "BUY":
-
-                mfe = (
-                    highest_price - entry
-                )
-
-                mae = (
-                    lowest_price - entry
-                )
-
-            else:
-
-                mfe = (
-                    entry - lowest_price
-                )
-
-                mae = (
-                    entry - highest_price
-                )
-
-            mfe = round(mfe, 2)
-            mae = round(mae, 2)
-
-            mfe_r = round(
-                mfe / risk_per_share,
-                2
-            )
-
-            mae_r = round(
-                mae / risk_per_share,
-                2
-            )
-
-            # =================================
-            # SAVE TRADE
-            # =================================
-
-            results.append({
-
-                "Signal": signal,
-
-                "SignalDate": row.name,
-
-                "Date": data.iloc[
-                    entry_index
-                ].name,
-
-                "Entry": entry,
-
-                "CurrentPrice": current_price,
-
-                "StopLoss": stoploss,
-
-                "Target1": target1,
-
-                "Target2": target2,
-
-                "Target3": target3,
-
-                "RR": round(
-                    self.target2_rr,
-                    2
-                ),
-
-                "RiskPerTrade": self.risk_per_trade,
-
-                "Quantity": quantity,
-
-                "RiskAmount": round(
-                    risk_amount,
-                    2
-                ),
-
-                "ExitPrice": exit_price,
-
-                "ExitDate": exit_date,
-
-                "TargetHit": target_hit,
-
-                "Status": status,
-
-                "PnL": pnl,
-
-                "UnrealizedPnL": unrealized_pnl,
-
-                "TotalPnL": round(
-                    pnl + unrealized_pnl,
-                    2
-                ),
-
-                "PnLPercent": pnl_percent,
-
-                "RMultiple": r_multiple,
-
-                "MFE": mfe,
-
-                "MAE": mae,
-
-                "MFE_R": mfe_r,
-
-                "MAE_R": mae_r
-
-            })
-
-            # Prevent overlapping trades
-
-            next_available_index = max(
-                entry_index + 1,
-                end_index
-            )
-
-        return self.summary(results)
-
-    # =========================================
-    # SUMMARY
-    # =========================================
-
-    def summary(self, results):
-
-        total = len(results)
-
-        wins = sum(
-            1
-            for trade in results
-            if trade["Status"] == "WIN"
+        # =====================================
+        # TOTALS
+        # =====================================
+
+        self.diagnostics[
+            "TotalSetups"
+        ] = (
+            self.diagnostics[
+                "FinalBuySetup"
+            ]
+            +
+            self.diagnostics[
+                "FinalSellSetup"
+            ]
         )
 
-        losses = sum(
-            1
-            for trade in results
-            if trade["Status"] == "LOSS"
+        self.diagnostics[
+            "TotalEntries"
+        ] = (
+            self.diagnostics[
+                "BuyEntryTriggered"
+            ]
+            +
+            self.diagnostics[
+                "SellEntryTriggered"
+            ]
         )
 
-        opens = sum(
-            1
-            for trade in results
-            if trade["Status"] == "OPEN"
+        return self.summary(
+            results
         )
 
-        closed = wins + losses
-
-        # =====================================
-        # WIN RATE
-        # =====================================
-
-        win_rate = round(
-            wins / closed * 100,
-            2
-        ) if closed > 0 else 0.0
-
-        # =====================================
-        # P&L
-        # =====================================
-
-        realized_pnl = round(
-            sum(
-                trade["PnL"]
-                for trade in results
-            ),
-            2
-        )
-
-        unrealized_pnl = round(
-            sum(
-                trade["UnrealizedPnL"]
-                for trade in results
-            ),
-            2
-        )
-
-        total_pnl = round(
-            realized_pnl +
-            unrealized_pnl,
-            2
-        )
-
-        # =====================================
-        # PROFITS
-        # =====================================
-
-        profits = [
-            trade["PnL"]
-            for trade in results
-            if trade["PnL"] > 0
-        ]
-
-        average_profit = (
-            round(
-                sum(profits) /
-                len(profits),
-                2
-            )
-            if profits
-            else 0.0
-        )
-
-        # =====================================
-        # LOSSES
-        # =====================================
-
-        losses_list = [
-            trade["PnL"]
-            for trade in results
-            if trade["PnL"] < 0
-        ]
-
-        average_loss = (
-            round(
-                sum(losses_list) /
-                len(losses_list),
-                2
-            )
-            if losses_list
-            else 0.0
-        )
-
-        # =====================================
-        # PROFIT FACTOR
-        # =====================================
-
-        gross_profit = sum(profits)
-
-        gross_loss = abs(
-            sum(losses_list)
-        )
-
-        if gross_loss > 0:
-
-            profit_factor = round(
-                gross_profit /
-                gross_loss,
-                2
-            )
-
-        elif gross_profit > 0:
-
-            profit_factor = 999.0
-
-        else:
-
-            profit_factor = 0.0
-
-        # =====================================
-        # EXPECTANCY
-        # =====================================
-
-        if closed > 0:
-
-            expectancy = round(
-                (
-                    wins /
-                    closed
-                ) * average_profit
-                +
-                (
-                    losses /
-                    closed
-                ) * average_loss,
-                2
-            )
-
-        else:
-
-            expectancy = 0.0
-
-        # =====================================
-        # AVERAGE R
-        # =====================================
-
-        closed_r = [
-            trade["RMultiple"]
-            for trade in results
-            if trade["Status"]
-            in ("WIN", "LOSS")
-        ]
-
-        average_r = (
-            round(
-                sum(closed_r) /
-                len(closed_r),
-                2
-            )
-            if closed_r
-            else 0.0
-        )
-
-        # =====================================
-        # MAX DRAWDOWN
-        # =====================================
-
-        equity = 0.0
-
-        peak = 0.0
-
-        max_drawdown = 0.0
-
-        for trade in results:
-
-            equity += trade["PnL"]
-
-            peak = max(
-                peak,
-                equity
-            )
-
-            drawdown = (
-                equity - peak
-            )
-
-            max_drawdown = min(
-                max_drawdown,
-                drawdown
-            )
-
-        max_drawdown = round(
-            max_drawdown,
-            2
-        )
-
-        # =====================================
-        # TARGET PERFORMANCE
-        # =====================================
-
-        target1_wins = sum(
-            1
-            for trade in results
-            if trade["TargetHit"]
-            == "TARGET1"
-        )
-
-        target2_wins = sum(
-            1
-            for trade in results
-            if trade["TargetHit"]
-            == "TARGET2"
-        )
+    # ===========
