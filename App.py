@@ -395,35 +395,35 @@ st.dataframe(
     use_container_width=True
 )
     # ==========================================
-    # BACKTEST SUMMARY
-    # ==========================================
+# BACKTEST SUMMARY
+# ==========================================
 
-    st.subheader("Backtest Summary")
+st.subheader("Backtest Summary")
 
-    for symbol, report in scanner.backtest_results.items():
+for symbol, report in scanner.backtest_results.items():
 
-        st.write(f"### {symbol}")
+    st.write(f"### {symbol}")
 
-        if isinstance(report, dict):
+    if isinstance(report, dict):
 
-            st.write({
-                "Total Trades": report.get("Total Trades", 0),
-                "Wins": report.get("Wins", 0),
-                "Losses": report.get("Losses", 0),
-                "Open": report.get("Open", 0),
-                "Win Rate": report.get("Win Rate", 0),
-                "Total PnL": report.get("Total PnL", 0),
-                "Average Profit": report.get("Average Profit", 0),
-                "Average Loss": report.get("Average Loss", 0),
-                "Profit Factor": report.get("Profit Factor", 0),
-                "Max Drawdown": report.get("Max Drawdown", 0),
-                "Target1 Wins": report.get("Target1 Wins", 0),
-                "Target2 Wins": report.get("Target2 Wins", 0),
-                "Target3 Wins": report.get("Target3 Wins", 0)
-            })
+        st.write({
+            "Total Trades": report.get("Total Trades", 0),
+            "Wins": report.get("Wins", 0),
+            "Losses": report.get("Losses", 0),
+            "Open": report.get("Open", 0),
+            "Win Rate": report.get("Win Rate", 0),
+            "Total PnL": report.get("Total PnL", 0),
+            "Average Profit": report.get("Average Profit", 0),
+            "Average Loss": report.get("Average Loss", 0),
+            "Profit Factor": report.get("Profit Factor", 0),
+            "Max Drawdown": report.get("Max Drawdown", 0),
+            "Target1 Wins": report.get("Target1 Wins", 0),
+            "Target2 Wins": report.get("Target2 Wins", 0),
+            "Target3 Wins": report.get("Target3 Wins", 0)
+        })
 
-        else:
+    else:
 
-            st.warning(
-                f"{symbol}: Backtest report format incorrect."
-            )
+        st.warning(
+            f"{symbol}: Backtest report format incorrect."
+        )
