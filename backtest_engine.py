@@ -4,22 +4,58 @@ import pandas as pd
 class BacktestEngine:
 
     def __init__(self):
-        self.lookahead_days = 15
-        self.risk_per_trade = 0.01
-        self.min_trades_for_ranking = 3
 
-    # =========================================
-    # BACKTEST ENGINE
-    # =========================================
+        # ==============================
+        # BACKTEST SETTINGS
+        # ==============================
+
+        self.lookahead_days = 15
+
+        self.risk_per_trade = 0.01
+
+        self.min_trades_for_ranking = 5
+
+        # Entry trigger
+        self.entry_atr_buffer = 0.25
+
+        # Stop loss
+        self.stop_atr_multiplier = 1.5
+
+        # Targets
+        self.target1_r = 1.5
+        self.target2_r = 2.5
+        self.target3_r = 4.0
+
+        # Break-even after T1
+        self.use_break_even = True
+
+        # ==============================
+        # RANKING SETTINGS
+        # ==============================
+
+        self.max_profit_factor = 5.0
+
+    # ==========================================================
+    # MAIN BACKTEST
+    # ==========================================================
 
     def run(self, data):
 
         results = []
 
+        # ------------------------------------------
+        # EMPTY DATA
+        # ------------------------------------------
+
         if data is None or data.empty:
+
             return self.summary(results)
 
         data = data.copy()
+
+        # ------------------------------------------
+        # REQUIRED COLUMNS
+        # ------------------------------------------
 
         required = [
             "Close",
@@ -34,58 +70,101 @@ class BacktestEngine:
             "VWAP"
         ]
 
-        # Check required columns
         for column in required:
 
             if column not in data.columns:
+
                 return self.summary(results)
 
-        # Clean data
+        # ------------------------------------------
+        # CLEAN DATA
+        # ------------------------------------------
+
         data = data.dropna(
             subset=required
         ).copy()
 
         if len(data) < 61:
+
             return self.summary(results)
 
-        # =========================================
-        # HISTORICAL SCAN
-        # =========================================
+        # ------------------------------------------
+        # SORT DATA
+        # ------------------------------------------
+
+        try:
+
+            data = data.sort_index()
+
+        except Exception:
+
+            pass
+
+        # ------------------------------------------
+        # PREVENT OVERLAPPING TRADES
+        # ------------------------------------------
 
         next_available_index = 60
 
-        for i in range(60, len(data) - 1):
+        # ======================================================
+        # HISTORICAL SCAN
+        # ======================================================
+
+        for i in range(
+            60,
+            len(data) - 1
+        ):
 
             if i < next_available_index:
+
                 continue
 
             row = data.iloc[i]
+
+            # ------------------------------------------
+            # READ INDICATORS
+            # ------------------------------------------
 
             try:
 
                 ema20 = float(row["EMA20"])
                 ema50 = float(row["EMA50"])
+
                 rsi = float(row["RSI"])
+
                 macd = float(row["MACD"])
                 macd_signal = float(
                     row["MACD_SIGNAL"]
                 )
+
                 close = float(row["Close"])
+
                 atr = float(row["ATR"])
+
                 vwap = float(row["VWAP"])
 
-            except (TypeError, ValueError):
+            except (
+                TypeError,
+                ValueError
+            ):
 
                 continue
 
-            if atr <= 0 or close <= 0:
+            if atr <= 0:
+
                 continue
 
-            # =====================================
+            if close <= 0:
+
+                continue
+
+            # ==================================================
             # BUY SETUP
-            # =====================================
+            # ==================================================
 
-            trend_ok = ema20 > ema50
+            trend_ok = (
+                ema20 > ema50
+            )
 
             momentum_ok = (
                 macd > macd_signal
@@ -107,19 +186,28 @@ class BacktestEngine:
             )
 
             if not buy_setup:
+
                 continue
 
-            # =====================================
+            # ==================================================
             # ENTRY
-            # =====================================
+            # ==================================================
 
             entry = round(
-                close + (atr * 0.25),
+                close +
+                (
+                    atr *
+                    self.entry_atr_buffer
+                ),
                 2
             )
 
             stoploss = round(
-                entry - (atr * 1.5),
+                entry -
+                (
+                    atr *
+                    self.stop_atr_multiplier
+                ),
                 2
             )
 
@@ -129,30 +217,43 @@ class BacktestEngine:
             )
 
             if risk <= 0:
+
                 continue
 
-            # =====================================
+            # ==================================================
             # TARGETS
-            # =====================================
+            # ==================================================
 
             target1 = round(
-                entry + (risk * 1.5),
+                entry +
+                (
+                    risk *
+                    self.target1_r
+                ),
                 2
             )
 
             target2 = round(
-                entry + (risk * 2.5),
+                entry +
+                (
+                    risk *
+                    self.target2_r
+                ),
                 2
             )
 
             target3 = round(
-                entry + (risk * 4.0),
+                entry +
+                (
+                    risk *
+                    self.target3_r
+                ),
                 2
             )
 
-            # =====================================
+            # ==================================================
             # FIND ENTRY TRIGGER
-            # =====================================
+            # ==================================================
 
             entry_index = None
 
@@ -169,38 +270,60 @@ class BacktestEngine:
                         candle["High"]
                     )
 
-                except (TypeError, ValueError):
+                except (
+                    TypeError,
+                    ValueError
+                ):
 
                     continue
 
                 if high >= entry:
 
                     entry_index = j
+
                     break
 
             if entry_index is None:
+
                 continue
 
-            # =====================================
+            # ==================================================
             # TRADE MANAGEMENT
-            # =====================================
+            # ==================================================
 
             status = "OPEN"
 
             exit_price = None
+
             exit_date = None
+
+            exit_reason = "OPEN"
 
             target_hit = "NONE"
 
             highest_price = entry
+
             lowest_price = entry
 
+            current_stop = stoploss
+
+            target1_reached = False
+
             end_index = min(
-                entry_index + self.lookahead_days,
+                entry_index +
+                self.lookahead_days,
                 len(data)
             )
 
-            last_index = end_index - 1
+            last_index = (
+                end_index - 1
+            )
+
+            holding_days = 0
+
+            # ==================================================
+            # CANDLE LOOP
+            # ==================================================
 
             for j in range(
                 entry_index,
@@ -219,9 +342,22 @@ class BacktestEngine:
                         candle["High"]
                     )
 
-                except (TypeError, ValueError):
+                    candle_close = float(
+                        candle["Close"]
+                    )
+
+                except (
+                    TypeError,
+                    ValueError
+                ):
 
                     continue
+
+                holding_days = (
+                    j -
+                    entry_index +
+                    1
+                )
 
                 highest_price = max(
                     highest_price,
@@ -233,25 +369,69 @@ class BacktestEngine:
                     low
                 )
 
-                # =================================
+                # ==================================================
+                # BREAK-EVEN LOGIC
+                # ==================================================
+
+                if (
+                    self.use_break_even
+                    and high >= target1
+                    and not target1_reached
+                ):
+
+                    target1_reached = True
+
+                    current_stop = entry
+
+                # ==================================================
                 # STOP LOSS
-                # =================================
+                #
+                # Conservative rule:
+                # If SL and target are both touched
+                # on same candle, SL is considered first.
+                # ==================================================
 
-                if low <= stoploss:
+                if low <= current_stop:
 
-                    status = "LOSS"
+                    status = (
+                        "WIN"
+                        if target1_reached
+                        else "LOSS"
+                    )
 
-                    exit_price = stoploss
+                    exit_price = (
+                        entry
+                        if target1_reached
+                        else current_stop
+                    )
 
                     exit_date = candle.name
 
-                    target_hit = "NONE"
+                    if target1_reached:
+
+                        target_hit = (
+                            "TARGET1"
+                        )
+
+                        exit_reason = (
+                            "BREAK_EVEN"
+                        )
+
+                    else:
+
+                        target_hit = (
+                            "NONE"
+                        )
+
+                        exit_reason = (
+                            "STOP_LOSS"
+                        )
 
                     break
 
-                # =================================
+                # ==================================================
                 # TARGET 3
-                # =================================
+                # ==================================================
 
                 if high >= target3:
 
@@ -261,13 +441,19 @@ class BacktestEngine:
 
                     exit_date = candle.name
 
-                    target_hit = "TARGET3"
+                    target_hit = (
+                        "TARGET3"
+                    )
+
+                    exit_reason = (
+                        "TARGET3"
+                    )
 
                     break
 
-                # =================================
+                # ==================================================
                 # TARGET 2
-                # =================================
+                # ==================================================
 
                 if high >= target2:
 
@@ -277,52 +463,82 @@ class BacktestEngine:
 
                     exit_date = candle.name
 
-                    target_hit = "TARGET2"
+                    target_hit = (
+                        "TARGET2"
+                    )
+
+                    exit_reason = (
+                        "TARGET2"
+                    )
 
                     break
 
-                # =================================
+                # ==================================================
                 # TARGET 1
-                # =================================
+                # ==================================================
 
                 if high >= target1:
 
-                    status = "WIN"
+                    target1_reached = True
 
-                    exit_price = target1
+                    # ------------------------------------------
+                    # Do NOT immediately close.
+                    # Move SL to break-even and allow
+                    # the trade to continue toward T2/T3.
+                    # ------------------------------------------
 
-                    exit_date = candle.name
+                    current_stop = entry
 
-                    target_hit = "TARGET1"
-
-                    break
-
-            # =====================================
+            # ==================================================
             # OPEN TRADE
-            # =====================================
+            # ==================================================
 
             if status == "OPEN":
 
                 try:
 
                     mark_price = float(
-                        data.iloc[last_index]["Close"]
+                        data.iloc[
+                            last_index
+                        ]["Close"]
                     )
 
-                except (TypeError, ValueError):
+                except (
+                    TypeError,
+                    ValueError
+                ):
 
                     mark_price = close
 
+                current_price = mark_price
+
                 unrealized_pnl = round(
-                    mark_price - entry,
+                    mark_price -
+                    entry,
                     2
                 )
 
-                current_price = mark_price
+                exit_reason = (
+                    "TIME_EXIT"
+                )
+
+                # ------------------------------------------
+                # Optional time-based classification
+                # ------------------------------------------
+
+                if unrealized_pnl > 0:
+
+                    status = "OPEN_PROFIT"
+
+                elif unrealized_pnl < 0:
+
+                    status = "OPEN_LOSS"
+
+                else:
+
+                    status = "OPEN"
 
             else:
-
-                unrealized_pnl = 0.0
 
                 current_price = (
                     exit_price
@@ -330,9 +546,11 @@ class BacktestEngine:
                     else close
                 )
 
-            # =====================================
+                unrealized_pnl = 0.0
+
+            # ==================================================
             # REALIZED P&L
-            # =====================================
+            # ==================================================
 
             pnl = 0.0
 
@@ -343,54 +561,65 @@ class BacktestEngine:
             if exit_price is not None:
 
                 pnl = round(
-                    exit_price - entry,
+                    exit_price -
+                    entry,
                     2
                 )
 
                 pnl_percent = round(
-                    (pnl / entry) * 100,
+                    (
+                        pnl /
+                        entry
+                    ) *
+                    100,
                     2
                 )
 
                 r_multiple = round(
-                    pnl / risk,
+                    pnl /
+                    risk,
                     2
                 )
 
             else:
 
                 r_multiple = round(
-                    unrealized_pnl / risk,
+                    unrealized_pnl /
+                    risk,
                     2
                 )
 
-            # =====================================
+            # ==================================================
             # MFE / MAE
-            # =====================================
+            # ==================================================
 
             mfe = round(
-                highest_price - entry,
+                highest_price -
+                entry,
                 2
             )
 
             mae = round(
-                lowest_price - entry,
+                lowest_price -
+                entry,
                 2
             )
 
             mfe_r = round(
-                mfe / risk,
+                mfe /
+                risk,
                 2
             )
 
             mae_r = round(
-                mae / risk,
+                mae /
+                risk,
                 2
             )
 
-            # =====================================
+            # ==================================================
             # SAVE TRADE
-            # =====================================
+            # ==================================================
 
             results.append({
 
@@ -411,6 +640,9 @@ class BacktestEngine:
                 "StopLoss":
                     stoploss,
 
+                "CurrentStop":
+                    current_stop,
+
                 "Target1":
                     target1,
 
@@ -422,7 +654,11 @@ class BacktestEngine:
 
                 "RR":
                     round(
-                        (target2 - entry) / risk,
+                        (
+                            target2 -
+                            entry
+                        ) /
+                        risk,
                         2
                     ),
 
@@ -438,8 +674,14 @@ class BacktestEngine:
                 "ExitDate":
                     exit_date,
 
+                "HoldingDays":
+                    holding_days,
+
                 "TargetHit":
                     target_hit,
+
+                "ExitReason":
+                    exit_reason,
 
                 "Status":
                     status,
@@ -452,7 +694,8 @@ class BacktestEngine:
 
                 "TotalPnL":
                     round(
-                        pnl + unrealized_pnl,
+                        pnl +
+                        unrealized_pnl,
                         2
                     ),
 
@@ -475,53 +718,76 @@ class BacktestEngine:
                     mae_r
             })
 
-            # =====================================
+            # ==================================================
             # PREVENT OVERLAPPING TRADES
-            # =====================================
+            # ==================================================
 
             next_available_index = max(
                 entry_index + 1,
                 end_index
             )
 
-        return self.summary(results)
+        return self.summary(
+            results
+        )
 
-    # =========================================
+    # ==========================================================
     # SUMMARY
-    # =========================================
+    # ==========================================================
 
     def summary(self, results):
 
         total = len(results)
 
+        # ======================================================
+        # CLOSED TRADE COUNTS
+        # ======================================================
+
         wins = sum(
             1
             for trade in results
-            if trade.get("Status") == "WIN"
+            if trade.get(
+                "Status"
+            ) == "WIN"
         )
 
         losses = sum(
             1
             for trade in results
-            if trade.get("Status") == "LOSS"
+            if trade.get(
+                "Status"
+            ) == "LOSS"
         )
 
-        opens = sum(
+        open_trades = sum(
             1
             for trade in results
-            if trade.get("Status") == "OPEN"
+            if trade.get(
+                "Status"
+            ) in (
+                "OPEN",
+                "OPEN_PROFIT",
+                "OPEN_LOSS"
+            )
         )
 
-        closed = wins + losses
+        closed = (
+            wins +
+            losses
+        )
 
-        # =====================================
+        # ======================================================
         # WIN RATE
-        # =====================================
+        # ======================================================
 
         win_rate = (
 
             round(
-                (wins / closed) * 100,
+                (
+                    wins /
+                    closed
+                ) *
+                100,
                 2
             )
 
@@ -530,11 +796,12 @@ class BacktestEngine:
             else 0.0
         )
 
-        # =====================================
-        # P&L
-        # =====================================
+        # ======================================================
+        # REALIZED P&L
+        # ======================================================
 
         realized_pnl = round(
+
             sum(
                 float(
                     trade.get(
@@ -542,12 +809,19 @@ class BacktestEngine:
                         0
                     )
                 )
+
                 for trade in results
             ),
+
             2
         )
 
+        # ======================================================
+        # UNREALIZED P&L
+        # ======================================================
+
         unrealized_pnl = round(
+
             sum(
                 float(
                     trade.get(
@@ -555,20 +829,28 @@ class BacktestEngine:
                         0
                     )
                 )
+
                 for trade in results
             ),
+
             2
         )
+
+        # ======================================================
+        # TOTAL P&L
+        # ======================================================
 
         total_pnl = round(
+
             realized_pnl +
             unrealized_pnl,
+
             2
         )
 
-        # =====================================
-        # PROFITS
-        # =====================================
+        # ======================================================
+        # CLOSED PROFITS
+        # ======================================================
 
         profits = [
 
@@ -581,17 +863,23 @@ class BacktestEngine:
 
             for trade in results
 
-            if float(
+            if (
                 trade.get(
-                    "PnL",
-                    0
-                )
-            ) > 0
+                    "Status"
+                ) == "WIN"
+                and
+                float(
+                    trade.get(
+                        "PnL",
+                        0
+                    )
+                ) > 0
+            )
         ]
 
-        # =====================================
-        # LOSSES
-        # =====================================
+        # ======================================================
+        # CLOSED LOSSES
+        # ======================================================
 
         losses_list = [
 
@@ -604,13 +892,23 @@ class BacktestEngine:
 
             for trade in results
 
-            if float(
+            if (
                 trade.get(
-                    "PnL",
-                    0
-                )
-            ) < 0
+                    "Status"
+                ) == "LOSS"
+                and
+                float(
+                    trade.get(
+                        "PnL",
+                        0
+                    )
+                ) < 0
+            )
         ]
+
+        # ======================================================
+        # AVERAGE PROFIT
+        # ======================================================
 
         average_profit = (
 
@@ -625,6 +923,10 @@ class BacktestEngine:
             else 0.0
         )
 
+        # ======================================================
+        # AVERAGE LOSS
+        # ======================================================
+
         average_loss = (
 
             round(
@@ -638,9 +940,9 @@ class BacktestEngine:
             else 0.0
         )
 
-        # =====================================
-        # PROFIT FACTOR
-        # =====================================
+        # ======================================================
+        # GROSS PROFIT / LOSS
+        # ======================================================
 
         gross_profit = sum(
             profits
@@ -652,6 +954,10 @@ class BacktestEngine:
             )
         )
 
+        # ======================================================
+        # PROFIT FACTOR
+        # ======================================================
+
         if gross_loss > 0:
 
             profit_factor = round(
@@ -662,19 +968,29 @@ class BacktestEngine:
 
         elif gross_profit > 0:
 
-            profit_factor = 999.0
+            # Avoid artificially giving 999
+            # for very small samples.
+
+            if closed >= self.min_trades_for_ranking:
+
+                profit_factor = 10.0
+
+            else:
+
+                profit_factor = 0.0
 
         else:
 
             profit_factor = 0.0
 
-        # =====================================
+        # ======================================================
         # EXPECTANCY
-        # =====================================
+        # ======================================================
 
-        expectancy = (
+        if closed > 0:
 
-            round(
+            expectancy = round(
+
                 (
                     (
                         wins /
@@ -683,7 +999,9 @@ class BacktestEngine:
                     *
                     average_profit
                 )
+
                 +
+
                 (
                     (
                         losses /
@@ -692,17 +1010,17 @@ class BacktestEngine:
                     *
                     average_loss
                 ),
+
                 2
             )
 
-            if closed > 0
+        else:
 
-            else 0.0
-        )
+            expectancy = 0.0
 
-        # =====================================
+        # ======================================================
         # AVERAGE R
-        # =====================================
+        # ======================================================
 
         closed_r = [
 
@@ -736,9 +1054,9 @@ class BacktestEngine:
             else 0.0
         )
 
-        # =====================================
+        # ======================================================
         # MAX DRAWDOWN
-        # =====================================
+        # ======================================================
 
         equity = 0.0
 
@@ -748,6 +1066,9 @@ class BacktestEngine:
 
         for trade in results:
 
+            # Only realized P&L is used
+            # for historical drawdown.
+
             equity += float(
                 trade.get(
                     "PnL",
@@ -755,29 +1076,27 @@ class BacktestEngine:
                 )
             )
 
-            peak = max(
-                peak,
-                equity
-            )
+            if equity > peak:
+
+                peak = equity
 
             drawdown = (
                 equity -
                 peak
             )
 
-            max_drawdown = min(
-                max_drawdown,
-                drawdown
-            )
+            if drawdown < max_drawdown:
+
+                max_drawdown = drawdown
 
         max_drawdown = round(
             max_drawdown,
             2
         )
 
-        # =====================================
+        # ======================================================
         # TARGET PERFORMANCE
-        # =====================================
+        # ======================================================
 
         target1_wins = sum(
 
@@ -812,71 +1131,127 @@ class BacktestEngine:
             ) == "TARGET3"
         )
 
-        # =====================================
-        # RISK-ADJUSTED SCORE
-        # =====================================
+        # ======================================================
+        # BREAK-EVEN TRADES
+        # ======================================================
 
-        if total > 0:
+        break_even_trades = sum(
+
+            1
+
+            for trade in results
+
+            if trade.get(
+                "ExitReason"
+            ) == "BREAK_EVEN"
+        )
+
+        # ======================================================
+        # RISK ADJUSTED SCORE
+        # ======================================================
+
+        if closed > 0:
+
+            # ----------------------------------------------
+            # Profit Factor Component
+            # ----------------------------------------------
 
             pf_component = (
+
                 min(
                     profit_factor,
-                    5.0
+                    self.max_profit_factor
                 )
-                * 15.0
-            )
+                /
+                self.max_profit_factor
+            ) * 30.0
+
+            # ----------------------------------------------
+            # Win Rate Component
+            # ----------------------------------------------
 
             win_component = (
                 win_rate *
-                0.35
+                0.30
             )
 
-            pnl_component = (
+            # ----------------------------------------------
+            # Expectancy Component
+            # ----------------------------------------------
+
+            expectancy_component = (
 
                 max(
                     min(
-                        total_pnl,
-                        500.0
+                        expectancy,
+                        100.0
                     ),
-                    -500.0
+                    -100.0
                 )
-                * 0.05
+                *
+                0.15
             )
 
+            # ----------------------------------------------
+            # Average R Component
+            # ----------------------------------------------
+
+            r_component = (
+
+                max(
+                    min(
+                        average_r,
+                        3.0
+                    ),
+                    -3.0
+                )
+                *
+                5.0
+            )
+
+            # ----------------------------------------------
+            # Drawdown Penalty
+            # ----------------------------------------------
+
             drawdown_penalty = (
+
                 abs(
                     max_drawdown
                 )
-                * 0.05
-            )
-
-            expectancy_component = (
-                expectancy *
-                2.0
-            )
-
-            sample_factor = min(
-
-                total /
-                max(
-                    self.min_trades_for_ranking,
-                    1
-                ),
-
-                1.0
+                *
+                0.05
             )
 
             raw_score = (
 
                 pf_component
 
-                + win_component
+                +
+                win_component
 
-                + pnl_component
+                +
+                expectancy_component
 
-                + expectancy_component
+                +
+                r_component
 
-                - drawdown_penalty
+                -
+                drawdown_penalty
+            )
+
+            # ----------------------------------------------
+            # SAMPLE SIZE PENALTY
+            # ----------------------------------------------
+
+            sample_factor = min(
+
+                closed /
+                max(
+                    self.min_trades_for_ranking,
+                    1
+                ),
+
+                1.0
             )
 
             risk_adjusted_score = round(
@@ -891,9 +1266,31 @@ class BacktestEngine:
 
             risk_adjusted_score = 0.0
 
-        # =====================================
+        # ======================================================
+        # DATA QUALITY
+        # ======================================================
+
+        if closed == 0:
+
+            data_quality = (
+                "NO CLOSED TRADES"
+            )
+
+        elif closed < self.min_trades_for_ranking:
+
+            data_quality = (
+                "LOW SAMPLE"
+            )
+
+        else:
+
+            data_quality = (
+                "SUFFICIENT SAMPLE"
+            )
+
+        # ======================================================
         # FINAL REPORT
-        # =====================================
+        # ======================================================
 
         return {
 
@@ -907,7 +1304,7 @@ class BacktestEngine:
                 losses,
 
             "Open":
-                opens,
+                open_trades,
 
             "Closed Trades":
                 closed,
@@ -951,8 +1348,14 @@ class BacktestEngine:
             "Target3 Wins":
                 target3_wins,
 
+            "BreakEven Trades":
+                break_even_trades,
+
             "Risk Adjusted Score":
                 risk_adjusted_score,
+
+            "Data Quality":
+                data_quality,
 
             "Trades":
                 results
