@@ -170,7 +170,7 @@ class StockScanner:
         )
 
 
-                # ======================================
+                        # ======================================
         # BACKTEST
         # ======================================
 
@@ -178,27 +178,30 @@ class StockScanner:
 
         for symbol, data in self.market_data.items():
 
-            if data.empty:
+            if data is None or data.empty:
                 continue
 
             try:
 
-                # Indicator processing
+                # Fresh copy for backtest
+                bt_data = data.copy()
+
+                # Indicators
                 bt_data, _ = (
                     self.indicator_engine.process(
-                        data.copy()
+                        bt_data
                     )
                 )
 
-                # Run backtest
+                # Run backtest ONCE
                 raw_report = (
                     self.backtest.run(
                         bt_data
                     )
                 )
 
-                # BacktestEngine.summary() already
-                # returns the final report.
+                # Store RAW REPORT directly
+                # Do NOT run analyzer here
                 backtest_results[symbol] = raw_report
 
             except Exception:
@@ -211,10 +214,8 @@ class StockScanner:
                     traceback.format_exc()
                 )
 
-        # Save all backtest results
-        self.backtest_results = (
-            backtest_results
-        )
+        # Save results
+        self.backtest_results = backtest_results
 
         return self.results
 
