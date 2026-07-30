@@ -92,11 +92,11 @@ class StockScanner:
             "RR": trade["RR"],
         })
 
-    # ==========================================
+        # ==========================================
     # Run Scanner
     # ==========================================
 
-        def run(self):
+    def run(self):
 
         self.load_market()
 
@@ -119,9 +119,9 @@ class StockScanner:
         print("Columns:", self.results.columns.tolist())
         print(self.results)
 
-        # ======================================
+        # ==========================================
         # BACKTEST
-        # ======================================
+        # ==========================================
 
         backtest_results = {}
 
