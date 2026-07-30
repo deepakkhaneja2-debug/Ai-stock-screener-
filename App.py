@@ -124,8 +124,8 @@ class StockScanner:
         for symbol, data in self.market_data.items():
 
             if not data.empty:
-                bt_data, _ = self.indicator_engine.process(data.copy())
-backtest_results[symbol] = self.backtest.run(bt_data)
+                bt_data, _ =               self.indicator_engine.process(data.copy())
+                backtest_results[symbol] =         self.backtest.run(bt_data)
 
                 self.backtest_results = backtest_results
 
