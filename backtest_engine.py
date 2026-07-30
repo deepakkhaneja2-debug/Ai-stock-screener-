@@ -465,20 +465,55 @@ class BacktestEngine:
         # TARGET PERFORMANCE
         # =====================================
 
-        target1_wins = sum(
+                target1_wins = sum(
             1
             for trade in results
             if trade["TargetHit"] == "TARGET1"
-)
+        )
 
         target2_wins = sum(
             1
             for trade in results
             if trade["TargetHit"] == "TARGET2"
-)
+        )
 
         target3_wins = sum(
             1
             for trade in results
             if trade["TargetHit"] == "TARGET3"
-)
+        )
+
+        # =====================================
+        # RETURN BACKTEST REPORT
+        # =====================================
+
+        return {
+
+            "Total Trades": total,
+
+            "Wins": wins,
+
+            "Losses": losses,
+
+            "Open": opens,
+
+            "Win Rate": win_rate,
+
+            "Total PnL": total_pnl,
+
+            "Average Profit": average_profit,
+
+            "Average Loss": average_loss,
+
+            "Profit Factor": profit_factor,
+
+            "Max Drawdown": max_drawdown,
+
+            "Target1 Wins": target1_wins,
+
+            "Target2 Wins": target2_wins,
+
+            "Target3 Wins": target3_wins,
+
+            "Trades": results
+        }
