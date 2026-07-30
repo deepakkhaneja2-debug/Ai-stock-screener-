@@ -1,10 +1,6 @@
-import pandas as pd
-
-
 class BacktestEngine:
 
     def __init__(self):
-
         self.lookahead_days = 15
 
     # =========================================
@@ -15,7 +11,7 @@ class BacktestEngine:
 
         results = []
 
-        if data.empty:
+        if data is None or data.empty:
             return self.summary(results)
 
         data = data.copy()
@@ -30,7 +26,7 @@ class BacktestEngine:
             "MACD",
             "MACD_SIGNAL",
             "ATR",
-            "VWAP",
+            "VWAP"
         ]
 
         for column in required:
@@ -46,30 +42,35 @@ class BacktestEngine:
 
             row = data.iloc[i]
 
+            try:
+
+                ema20 = float(row["EMA20"])
+                ema50 = float(row["EMA50"])
+                rsi = float(row["RSI"])
+                macd = float(row["MACD"])
+                macd_signal = float(row["MACD_SIGNAL"])
+                close = float(row["Close"])
+                atr = float(row["ATR"])
+                vwap = float(row["VWAP"])
+
+            except (TypeError, ValueError):
+                continue
+
+            if atr <= 0:
+                continue
+
             # =================================
             # BUY SETUP
             # =================================
 
             buy_setup = (
-
-                row["EMA20"] > row["EMA50"]
-
-                and row["MACD"] > row["MACD_SIGNAL"]
-
-                and 55 < row["RSI"] < 75
-
-                and row["Close"] > row["VWAP"]
-
+                ema20 > ema50
+                and macd > macd_signal
+                and 55 < rsi < 75
+                and close > vwap
             )
 
             if not buy_setup:
-                continue
-
-            current_price = float(row["Close"])
-
-            atr = float(row["ATR"])
-
-            if atr <= 0:
                 continue
 
             # =================================
@@ -77,7 +78,7 @@ class BacktestEngine:
             # =================================
 
             entry = round(
-                current_price + atr * 0.25,
+                close + atr * 0.25,
                 2
             )
 
@@ -111,7 +112,7 @@ class BacktestEngine:
             )
 
             # =================================
-            # WAIT FOR ENTRY TRIGGER
+            # ENTRY TRIGGER
             # =================================
 
             entry_index = None
@@ -120,10 +121,11 @@ class BacktestEngine:
 
                 candle = data.iloc[j]
 
-                if float(candle["High"]) >= entry:
+                high = float(candle["High"])
+
+                if high >= entry:
 
                     entry_index = j
-
                     break
 
             if entry_index is None:
@@ -134,11 +136,8 @@ class BacktestEngine:
             # =================================
 
             status = "OPEN"
-
             exit_price = None
-
             exit_date = None
-
             target_hit = "NONE"
 
             end_index = min(
@@ -154,69 +153,56 @@ class BacktestEngine:
                 candle = data.iloc[j]
 
                 low = float(candle["Low"])
-
                 high = float(candle["High"])
 
-                # ---------------------------------
+                # =================================
                 # STOP LOSS
-                # ---------------------------------
+                # =================================
 
                 if low <= stoploss:
 
                     status = "LOSS"
-
                     exit_price = stoploss
-
                     exit_date = candle.name
-
                     target_hit = "NONE"
 
                     break
 
-                # ---------------------------------
+                # =================================
                 # TARGET 3
-                # ---------------------------------
+                # =================================
 
                 if high >= target3:
 
                     status = "WIN"
-
                     exit_price = target3
-
                     exit_date = candle.name
-
                     target_hit = "TARGET3"
 
                     break
 
-                # ---------------------------------
+                # =================================
                 # TARGET 2
-                # ---------------------------------
+                # =================================
 
                 if high >= target2:
 
                     status = "WIN"
-
                     exit_price = target2
-
                     exit_date = candle.name
-
                     target_hit = "TARGET2"
 
                     break
 
-                # ---------------------------------
+                # =================================
                 # TARGET 1
-                # ---------------------------------
+                # =================================
 
                 if high >= target1:
 
                     status = "WIN"
-
                     exit_price = target1
-
                     exit_date = candle.name
-
                     target_hit = "TARGET1"
 
                     break
@@ -225,9 +211,8 @@ class BacktestEngine:
             # P&L
             # =================================
 
-            pnl = 0
-
-            pnl_percent = 0
+            pnl = 0.0
+            pnl_percent = 0.0
 
             if exit_price is not None:
 
@@ -247,51 +232,36 @@ class BacktestEngine:
 
             results.append({
 
-                "Date":
-                    data.iloc[entry_index].name,
+                "Date": data.iloc[entry_index].name,
 
-                "Entry":
-                    entry,
+                "Entry": entry,
 
-                "CurrentPrice":
-                    current_price,
+                "CurrentPrice": close,
 
-                "StopLoss":
-                    stoploss,
+                "StopLoss": stoploss,
 
-                "Target1":
-                    target1,
+                "Target1": target1,
 
-                "Target2":
-                    target2,
+                "Target2": target2,
 
-                "Target3":
-                    target3,
+                "Target3": target3,
 
-                "RR":
-                    round(
-                        (target2 - entry) / risk,
-                        2
-                    ),
+                "RR": round(
+                    (target2 - entry) / risk,
+                    2
+                ),
 
-                "ExitPrice":
-                    exit_price,
+                "ExitPrice": exit_price,
 
-                "ExitDate":
-                    exit_date,
+                "ExitDate": exit_date,
 
-                "TargetHit":
-                    target_hit,
+                "TargetHit": target_hit,
 
-                "Status":
-                    status,
+                "Status": status,
 
-                "PnL":
-                    pnl,
+                "PnL": pnl,
 
-                "PnLPercent":
-                    pnl_percent,
-
+                "PnLPercent": pnl_percent
             })
 
         return self.summary(results)
@@ -328,18 +298,16 @@ class BacktestEngine:
         # WIN RATE
         # =====================================
 
-        win_rate = (
+        if closed > 0:
 
-            round(
+            win_rate = round(
                 (wins / closed) * 100,
                 2
             )
 
-            if closed > 0
+        else:
 
-            else 0
-
-        )
+            win_rate = 0.0
 
         # =====================================
         # P&L
@@ -354,7 +322,7 @@ class BacktestEngine:
         )
 
         # =====================================
-        # AVERAGE PROFIT
+        # PROFITS
         # =====================================
 
         profits = [
@@ -364,24 +332,21 @@ class BacktestEngine:
             for trade in results
 
             if trade["PnL"] > 0
-
         ]
 
-        average_profit = (
+        if profits:
 
-            round(
+            average_profit = round(
                 sum(profits) / len(profits),
                 2
             )
 
-            if profits
+        else:
 
-            else 0
-
-        )
+            average_profit = 0.0
 
         # =====================================
-        # AVERAGE LOSS
+        # LOSSES
         # =====================================
 
         losses_list = [
@@ -391,21 +356,18 @@ class BacktestEngine:
             for trade in results
 
             if trade["PnL"] < 0
-
         ]
 
-        average_loss = (
+        if losses_list:
 
-            round(
+            average_loss = round(
                 sum(losses_list) / len(losses_list),
                 2
             )
 
-            if losses_list
+        else:
 
-            else 0
-
-        )
+            average_loss = 0.0
 
         # =====================================
         # PROFIT FACTOR
@@ -417,44 +379,36 @@ class BacktestEngine:
             sum(losses_list)
         )
 
-        profit_factor = (
+        if gross_loss > 0:
 
-            round(
+            profit_factor = round(
                 gross_profit / gross_loss,
                 2
             )
 
-            if gross_loss > 0
+        else:
 
-            else 0
-
-        )
+            profit_factor = 0.0
 
         # =====================================
         # MAX DRAWDOWN
         # =====================================
 
-        equity = 0
-
-        peak = 0
-
-        max_drawdown = 0
+        equity = 0.0
+        peak = 0.0
+        max_drawdown = 0.0
 
         for trade in results:
 
             equity += trade["PnL"]
 
-            peak = max(
-                peak,
-                equity
-            )
+            if equity > peak:
+                peak = equity
 
             drawdown = equity - peak
 
-            max_drawdown = min(
-                max_drawdown,
-                drawdown
-            )
+            if drawdown < max_drawdown:
+                max_drawdown = drawdown
 
         max_drawdown = round(
             max_drawdown,
@@ -465,7 +419,7 @@ class BacktestEngine:
         # TARGET PERFORMANCE
         # =====================================
 
-                target1_wins = sum(
+        target1_wins = sum(
             1
             for trade in results
             if trade["TargetHit"] == "TARGET1"
@@ -484,7 +438,7 @@ class BacktestEngine:
         )
 
         # =====================================
-        # RETURN BACKTEST REPORT
+        # FINAL REPORT
         # =====================================
 
         return {
