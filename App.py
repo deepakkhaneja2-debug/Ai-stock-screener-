@@ -14,6 +14,7 @@ from dashboard import DashboardEngine
 from trade_logger import TradeLogger
 from performance_analyzer import PerformanceAnalyzer
 from backtest_engine import BacktestEngine
+from backtest_analyzer import BacktestAnalyzer
 
 class StockScanner:
 
@@ -29,6 +30,8 @@ class StockScanner:
         self.logger = TradeLogger()
         self.performance = PerformanceAnalyzer()
         self.backtest = BacktestEngine()
+        self.backtest_analyzer = BacktestAnalyzer()
+
         self.capital = STARTING_CAPITAL
 
         self.results = []
@@ -125,21 +128,26 @@ class StockScanner:
 
         backtest_results = {}
 
-        for symbol, data in self.market_data.items():
+for symbol, data in self.market_data.items():
 
-            if not data.empty:
+    if not data.empty:
 
-                bt_data, _ = self.indicator_engine.process(
-                    data.copy()
-                )
+        bt_data, _ = self.indicator_engine.process(
+            data.copy()
+        )
 
-                backtest_results[symbol] = self.backtest.run(
-                    bt_data
-                )
+        # Run Backtest
+        raw_report = self.backtest.run(bt_data)
 
-        self.backtest_results = backtest_results
+        # Analyze Backtest
+        analysis = self.backtest_analyzer.analyze(
+            raw_report
+        )
 
-        return self.results
+        backtest_results[symbol] = analysis
+
+
+self.backtest_results = backtest_results
         
     # ==========================================
     # Dashboard
