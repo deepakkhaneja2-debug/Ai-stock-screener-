@@ -462,21 +462,23 @@ class BacktestEngine:
         )
 
                 # =====================================
-        # TARGET PERFORMANCE
-        # =====================================
+# TARGET PERFORMANCE
+# =====================================
 
-        target1_wins = sum(
+target1_wins = sum(
+    1
+    for trade in results
+    if trade["TargetHit"] == "TARGET1"
+)
 
-            1
+target2_wins = sum(
+    1
+    for trade in results
+    if trade["TargetHit"] == "TARGET2"
+)
 
-            for trade in results
-
-            if trade["TargetHit"] == "TARGET1"
-
-        )
-
-        target2_wins = sum(
-
-            1
-
-            for trade in results
+target3_wins = sum(
+    1
+    for trade in results
+    if trade["TargetHit"] == "TARGET3"
+)
