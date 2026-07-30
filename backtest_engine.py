@@ -967,4 +967,222 @@ class BacktestEngine:
             results
         )
 
-    # ===========
+    # =========================================
+    # SUMMARY
+    # =========================================
+
+    def summary(self, results):
+
+        total = len(results)
+
+        wins = sum(
+            1 for trade in results
+            if trade.get("Status") == "WIN"
+        )
+
+        losses = sum(
+            1 for trade in results
+            if trade.get("Status") == "LOSS"
+        )
+
+        opens = sum(
+            1 for trade in results
+            if trade.get("Status") == "OPEN"
+        )
+
+        closed = wins + losses
+
+        win_rate = (
+            round((wins / closed) * 100, 2)
+            if closed > 0 else 0.0
+        )
+
+        realized_pnl = round(
+            sum(float(trade.get("PnL", 0)) for trade in results),
+            2
+        )
+
+        unrealized_pnl = round(
+            sum(float(trade.get("UnrealizedPnL", 0)) for trade in results),
+            2
+        )
+
+        total_pnl = round(
+            realized_pnl + unrealized_pnl,
+            2
+        )
+
+        profits = [
+            float(trade.get("PnL", 0))
+            for trade in results
+            if float(trade.get("PnL", 0)) > 0
+        ]
+
+        losses_list = [
+            float(trade.get("PnL", 0))
+            for trade in results
+            if float(trade.get("PnL", 0)) < 0
+        ]
+
+        average_profit = (
+            round(sum(profits) / len(profits), 2)
+            if profits else 0.0
+        )
+
+        average_loss = (
+            round(sum(losses_list) / len(losses_list), 2)
+            if losses_list else 0.0
+        )
+
+        gross_profit = sum(profits)
+        gross_loss = abs(sum(losses_list))
+
+        profit_factor = (
+            round(gross_profit / gross_loss, 2)
+            if gross_loss > 0
+            else (999.0 if gross_profit > 0 else 0.0)
+        )
+
+        expectancy = (
+            round(total_pnl / closed, 2)
+            if closed > 0 else 0.0
+        )
+
+        closed_r = [
+            float(trade.get("RMultiple", 0))
+            for trade in results
+            if trade.get("Status") in ("WIN", "LOSS")
+        ]
+
+        average_r = (
+            round(sum(closed_r) / len(closed_r), 2)
+            if closed_r else 0.0
+        )
+
+        # =========================================
+        # MAX DRAWDOWN
+        # =========================================
+
+        equity = 0.0
+        peak = 0.0
+        max_drawdown = 0.0
+
+        for trade in results:
+
+            equity += float(trade.get("PnL", 0))
+
+            peak = max(peak, equity)
+
+            drawdown = equity - peak
+
+            max_drawdown = min(
+                max_drawdown,
+                drawdown
+            )
+
+        max_drawdown = round(
+            max_drawdown,
+            2
+        )
+
+        # =========================================
+        # TARGETS
+        # =========================================
+
+        target1_wins = sum(
+            1 for trade in results
+            if trade.get("TargetHit") == "TARGET1"
+        )
+
+        target2_wins = sum(
+            1 for trade in results
+            if trade.get("TargetHit") == "TARGET2"
+        )
+
+        target3_wins = sum(
+            1 for trade in results
+            if trade.get("TargetHit") == "TARGET3"
+        )
+
+        # =========================================
+        # RISK ADJUSTED SCORE
+        # =========================================
+
+        if total > 0:
+
+            pf_component = min(
+                profit_factor,
+                5.0
+            ) * 15.0
+
+            win_component = win_rate * 0.35
+
+            pnl_component = (
+                max(
+                    min(total_pnl, 500.0),
+                    -500.0
+                ) * 0.05
+            )
+
+            drawdown_penalty = (
+                abs(max_drawdown) * 0.05
+            )
+
+            expectancy_component = (
+                expectancy * 2.0
+            )
+
+            sample_factor = min(
+                total /
+                max(self.min_trades_for_ranking, 1),
+                1.0
+            )
+
+            raw_score = (
+                pf_component
+                + win_component
+                + pnl_component
+                + expectancy_component
+                - drawdown_penalty
+            )
+
+            risk_adjusted_score = round(
+                raw_score * sample_factor,
+                2
+            )
+
+        else:
+
+            risk_adjusted_score = 0.0
+
+        return {
+
+            "Total Trades": total,
+            "Wins": wins,
+            "Losses": losses,
+            "Open": opens,
+            "Closed Trades": closed,
+
+            "Win Rate": win_rate,
+
+            "Realized PnL": realized_pnl,
+            "Unrealized PnL": unrealized_pnl,
+            "Total PnL": total_pnl,
+
+            "Average Profit": average_profit,
+            "Average Loss": average_loss,
+
+            "Profit Factor": profit_factor,
+            "Expectancy": expectancy,
+            "Average R": average_r,
+
+            "Max Drawdown": max_drawdown,
+
+            "Target1 Wins": target1_wins,
+            "Target2 Wins": target2_wins,
+            "Target3 Wins": target3_wins,
+
+            "Risk Adjusted Score": risk_adjusted_score,
+
+            "Trades": results
+        }
