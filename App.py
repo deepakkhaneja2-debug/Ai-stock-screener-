@@ -248,3 +248,16 @@ if __name__ == "__main__":
     # scanner.send_alerts()
     # scanner.save_logs()
     # scanner.performance_report()
+    st.subheader("Backtest Summary")
+
+    for symbol, report in     scanner.backtest_results.items():
+
+        st.write(f"### {symbol}")
+
+        st.write({
+            "Total Trades": report["Total Trades"],
+            "Wins": report["Wins"],
+            "Losses": report["Losses"],
+            "Open": report["Open"],
+            "Win Rate": report["Win Rate"]
+    })
