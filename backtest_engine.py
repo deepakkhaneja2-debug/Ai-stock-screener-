@@ -590,34 +590,7 @@ self.brokerage = BrokerageEngine()
 
                 unrealized_pnl = 0.0
 
-# ==========================================
-# BROKERAGE + SLIPPAGE
-# ==========================================
 
-charges = {
-    "Brokerage": 0,
-    "STT": 0,
-    "Exchange": 0,
-    "GST": 0,
-    "SEBI": 0,
-    "Stamp": 0,
-    "TotalCharges": 0
-}
-
-gross_pnl = pnl
-net_pnl = pnl
-
-if self.enable_brokerage and exit_price is not None:
-
-    calc = self.brokerage.net_pnl(
-        entry,
-        exit_price,
-        1
-    )
-
-    gross_pnl = calc["GrossPnL"]
-    net_pnl = calc["NetPnL"]
-    charges = calc["Charges"]
 
             # ==================================================
             # REALIZED P&L
@@ -680,9 +653,9 @@ charges = {
 if self.enable_brokerage and exit_price is not None:
 
     calc = self.brokerage.net_pnl(
-        entry_price=entry,
-        exit_price=exit_price,
-        quantity=1
+        buy_price=entry,
+        sell_price=exit_price,
+        qty=1
     )
 
     gross_pnl = calc["GrossPnL"]
@@ -790,15 +763,14 @@ if self.enable_brokerage and exit_price is not None:
                 "Status":
                     status,
 
-                "PnL":
-                    pnl,
+                "PnL": net_pnl,
 
                 "UnrealizedPnL":
                     unrealized_pnl,
 
                 "TotalPnL":
                     round(
-                        pnl +
+                        net_pnl +
                         unrealized_pnl,
                         2
                     ),
