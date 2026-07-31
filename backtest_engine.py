@@ -1,10 +1,13 @@
 import pandas as pd
 
+from brokerage_engine import BrokerageEngine
+
 
 class BacktestEngine:
 
     def __init__(self):
-
+        self.brokerage = BrokerageEngine()
+        
         # ==============================
         # BACKTEST SETTINGS
         # ==============================
