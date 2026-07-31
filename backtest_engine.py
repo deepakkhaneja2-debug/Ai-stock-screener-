@@ -660,6 +660,35 @@ if self.enable_brokerage and exit_price is not None:
                     2
                 )
 
+# ==========================================
+# BROKERAGE CALCULATION
+# ==========================================
+
+gross_pnl = pnl
+net_pnl = pnl
+
+charges = {
+    "Brokerage": 0,
+    "STT": 0,
+    "Exchange": 0,
+    "GST": 0,
+    "SEBI": 0,
+    "Stamp": 0,
+    "TotalCharges": 0
+}
+
+if self.enable_brokerage and exit_price is not None:
+
+    calc = self.brokerage.net_pnl(
+        entry_price=entry,
+        exit_price=exit_price,
+        quantity=1
+    )
+
+    gross_pnl = calc["GrossPnL"]
+    net_pnl = calc["NetPnL"]
+    charges = calc["Charges"]
+
             # ==================================================
             # MFE / MAE
             # ==================================================
