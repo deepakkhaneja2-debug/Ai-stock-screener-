@@ -2,12 +2,39 @@ import pandas as pd
 
 from brokerage_engine import BrokerageEngine
 
+from brokerage_engine import BrokerageEngine
+import numpy as np
+
 
 class BacktestEngine:
 
     def __init__(self):
 
-        self.brokerage = BrokerageEngine()
+        # ==================================
+# PROFESSIONAL SETTINGS
+# ==================================
+
+self.enable_brokerage = True
+
+self.enable_slippage = True
+
+self.enable_partial_exit = True
+
+self.enable_trailing = True
+
+self.partial_qty_1 = 0.25
+self.partial_qty_2 = 0.25
+self.partial_qty_3 = 0.50
+
+self.trailing_atr = 2
+
+self.initial_capital = 100000
+
+self.current_equity = self.initial_capital
+
+self.equity_curve = []
+
+self.brokerage = BrokerageEngine()
         
         # ==============================
         # BACKTEST SETTINGS
@@ -199,12 +226,13 @@ class BacktestEngine:
 
             entry = round(
                 close +
-                (
-                    atr *
-                    self.entry_atr_buffer
-                ),
+                (atr * self.entry_atr_buffer),
                 2
             )
+
+            if self.enable_slippage:
+
+                entry +=                            self.brokerage.slippage_price(entry)
 
             stoploss = round(
                 entry -
@@ -296,6 +324,16 @@ class BacktestEngine:
             # ==================================================
 
             status = "OPEN"
+
+            remaining_qty = 1.0
+
+            realized_pnl = 0
+
+            charges_paid = 0
+
+            partial_exit_done = False
+
+            partial2_exit_done = False
 
             exit_price = None
 
@@ -552,6 +590,35 @@ class BacktestEngine:
 
                 unrealized_pnl = 0.0
 
+# ==========================================
+# BROKERAGE + SLIPPAGE
+# ==========================================
+
+charges = {
+    "Brokerage": 0,
+    "STT": 0,
+    "Exchange": 0,
+    "GST": 0,
+    "SEBI": 0,
+    "Stamp": 0,
+    "TotalCharges": 0
+}
+
+gross_pnl = pnl
+net_pnl = pnl
+
+if self.enable_brokerage and exit_price is not None:
+
+    calc = self.brokerage.net_pnl(
+        entry,
+        exit_price,
+        1
+    )
+
+    gross_pnl = calc["GrossPnL"]
+    net_pnl = calc["NetPnL"]
+    charges = calc["Charges"]
+
             # ==================================================
             # REALIZED P&L
             # ==================================================
@@ -627,7 +694,11 @@ class BacktestEngine:
 
             results.append({
 
-                "Date":
+               "GrossPnL": gross_pnl,
+               "NetPnL": net_pnl,
+               "Brokerage": charges["Brokerage"],
+               "Charges":                charges["TotalCharges"],
+               "Date":
                     data.iloc[
                         entry_index
                     ].name,
