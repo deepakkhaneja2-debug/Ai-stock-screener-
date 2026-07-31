@@ -872,24 +872,24 @@ if self.enable_brokerage and exit_price is not None:
         )
 
         # ======================================================
-        # REALIZED P&L
-        # ======================================================
+# REALIZED NET P&L
+# ======================================================
 
-        realized_pnl = round(
+realized_pnl = round(
 
-            sum(
-                float(
-                    trade.get(
-                        "PnL",
-                        0
-                    )
-                )
-
-                for trade in results
-            ),
-
-            2
+    sum(
+        float(
+            trade.get(
+                "NetPnL",
+                0
+            )
         )
+
+        for trade in results
+    ),
+
+    2
+)
 
         # ======================================================
         # UNREALIZED P&L
