@@ -6,30 +6,13 @@ from typing import Dict, Any, List, Optional
 class BacktestAnalyzer:
     """
     Advanced backtest analysis engine for AI Stock Scanner V1.4.
-    Calculates comprehensive performance metrics including:
-    - Trade statistics (wins, losses, break-even, open trades)
-    - Risk metrics (profit factor, expectancy, drawdown)
-    - Target achievement (T1, T2, T3)
-    - AI Score (0-100) for strategy evaluation
-    - Equity and drawdown curves
-    - Monthly P&L breakdown
+    Calculates comprehensive performance metrics.
     """
 
     def __init__(self):
-        """Initialize the BacktestAnalyzer with default settings."""
         self.min_trades_for_ranking = 5
 
     def analyze(self, report: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Analyze a backtest report and return comprehensive metrics.
-
-        Args:
-            report: Dictionary containing backtest results with 'Trades' key
-
-        Returns:
-            Dictionary with all performance metrics
-        """
-        # Validate input
         if not isinstance(report, dict):
             return self._empty_analysis()
 
@@ -37,28 +20,23 @@ class BacktestAnalyzer:
         if not trades or not isinstance(trades, list):
             return self._empty_analysis()
 
-        # Filter out open trades for closed trade statistics
-        closed_trades = [t for t in trades if t.get("Status") not in ["OPEN", "OPEN_PROFIT", "OPEN_LOSS"]]
-        open_trades = [t for t in trades if t.get("Status") in ["OPEN", "OPEN_PROFIT", "OPEN_LOSS"]]
-
-        # Basic counts
-        total_trades = len(closed_trades)
-        open_trades_count = len(open_trades)
+        # All trades in the report are already closed by backtest_engine
+        total_trades = len(trades)
 
         if total_trades == 0:
             return self._empty_analysis()
 
         # Win/Loss/Break-even counts
-        wins = sum(1 for t in closed_trades if t.get("Status") == "WIN")
-        losses = sum(1 for t in closed_trades if t.get("Status") == "LOSS")
-        break_even = sum(1 for t in closed_trades if t.get("Status") == "BREAK_EVEN")
+        wins = sum(1 for t in trades if t.get("Status") == "WIN")
+        losses = sum(1 for t in trades if t.get("Status") == "LOSS")
+        break_even = sum(1 for t in trades if t.get("Status") == "BREAK_EVEN")
 
         # Win/Loss rates
         win_rate = round((wins / total_trades) * 100, 2) if total_trades > 0 else 0.0
         loss_rate = round((losses / total_trades) * 100, 2) if total_trades > 0 else 0.0
 
         # P&L calculations
-        pnls = [float(t.get("PnL", 0)) for t in closed_trades]
+        pnls = [float(t.get("PnL", 0)) for t in trades]
         total_pnl = round(sum(pnls), 2)
 
         profits = [p for p in pnls if p > 0]
@@ -88,7 +66,7 @@ class BacktestAnalyzer:
         current_wins = 0
         current_losses = 0
 
-        for t in closed_trades:
+        for t in trades:
             status = t.get("Status")
             if status == "WIN":
                 current_wins += 1
@@ -104,23 +82,23 @@ class BacktestAnalyzer:
                 current_losses = 0
 
         # Average R multiple
-        r_multiples = [float(t.get("RMultiple", 0)) for t in closed_trades if t.get("RMultiple", 0) != 0]
+        r_multiples = [float(t.get("RMultiple", 0)) for t in trades if t.get("RMultiple", 0) != 0]
         avg_r_multiple = round(sum(r_multiples) / len(r_multiples), 2) if r_multiples else 0.0
 
         # Average holding days
         holding_days = [
             int(t.get("HoldingDays", 0))
-            for t in closed_trades
+            for t in trades
             if t.get("HoldingDays", 0) is not None and t.get("HoldingDays", 0) > 0
         ]
         avg_holding_days = round(sum(holding_days) / len(holding_days), 1) if holding_days else 0.0
 
         # Target hits
-        target1_wins = sum(1 for t in closed_trades if t.get("TargetHit") == "TARGET1")
-        target2_wins = sum(1 for t in closed_trades if t.get("TargetHit") == "TARGET2")
-        target3_wins = sum(1 for t in closed_trades if t.get("TargetHit") == "TARGET3")
+        target1_wins = sum(1 for t in trades if t.get("TargetHit") == "TARGET1")
+        target2_wins = sum(1 for t in trades if t.get("TargetHit") == "TARGET2")
+        target3_wins = sum(1 for t in trades if t.get("TargetHit") == "TARGET3")
 
-        # Max drawdown (from closed trades only)
+        # Max drawdown
         equity = 0.0
         peak = 0.0
         max_drawdown = 0.0
@@ -134,13 +112,13 @@ class BacktestAnalyzer:
         max_drawdown = round(max_drawdown, 2)
 
         # Monthly P&L
-        monthly_pnl = self._calculate_monthly_pnl(closed_trades)
+        monthly_pnl = self._calculate_monthly_pnl(trades)
 
         # Equity curve
-        equity_curve = self._calculate_equity_curve(closed_trades)
+        equity_curve = self._calculate_equity_curve(trades)
 
         # Drawdown curve
-        drawdown_curve = self._calculate_drawdown_curve(closed_trades)
+        drawdown_curve = self._calculate_drawdown_curve(trades)
 
         # AI Score (0-100)
         ai_score = self._calculate_ai_score(
@@ -150,7 +128,6 @@ class BacktestAnalyzer:
             max_drawdown=max_drawdown,
             total_trades=total_trades,
             avg_r_multiple=avg_r_multiple,
-            avg_holding_days=avg_holding_days,
             wins=wins,
             losses=losses
         )
@@ -168,7 +145,7 @@ class BacktestAnalyzer:
         return {
             "Total Trades": total_trades,
             "Closed Trades": total_trades,
-            "Open Trades": open_trades_count,
+            "Open Trades": 0,
             "Wins": wins,
             "Losses": losses,
             "Break Even": break_even,
@@ -194,56 +171,33 @@ class BacktestAnalyzer:
             "Target1 Wins": target1_wins,
             "Target2 Wins": target2_wins,
             "Target3 Wins": target3_wins,
-            "Trades": closed_trades
+            "Trades": trades
         }
 
     def _calculate_monthly_pnl(self, trades: List[Dict]) -> Dict[str, float]:
-        """
-        Calculate monthly P&L from trade history.
-
-        Args:
-            trades: List of closed trade dictionaries
-
-        Returns:
-            Dictionary with month keys and P&L values
-        """
         monthly = {}
         for t in trades:
             exit_date = t.get("ExitDate")
             if exit_date is not None:
                 try:
-                    # Handle different date formats
                     if hasattr(exit_date, "strftime"):
                         month_key = exit_date.strftime("%Y-%m")
                     else:
-                        # Convert string to datetime if needed
                         try:
                             date_obj = pd.to_datetime(exit_date)
                             month_key = date_obj.strftime("%Y-%m")
                         except Exception:
                             continue
-                    
                     pnl = float(t.get("PnL", 0))
                     monthly[month_key] = monthly.get(month_key, 0) + pnl
                 except Exception:
                     continue
-        
         return monthly
 
     def _calculate_equity_curve(self, trades: List[Dict]) -> List[Dict]:
-        """
-        Calculate equity curve from trade history.
-
-        Args:
-            trades: List of closed trade dictionaries
-
-        Returns:
-            List of dictionaries with 'Date' and 'Equity' keys
-        """
         if not trades:
             return []
 
-        # Sort trades by date
         sorted_trades = sorted(
             trades,
             key=lambda x: x.get("ExitDate", pd.Timestamp.min)
@@ -251,12 +205,10 @@ class BacktestAnalyzer:
 
         equity = 0.0
         curve = []
-        
         for t in sorted_trades:
             exit_date = t.get("ExitDate")
             if exit_date is not None:
                 try:
-                    # Handle date conversion
                     if hasattr(exit_date, "strftime"):
                         date_str = exit_date.strftime("%Y-%m-%d")
                     else:
@@ -265,7 +217,6 @@ class BacktestAnalyzer:
                             date_str = date_obj.strftime("%Y-%m-%d")
                         except Exception:
                             continue
-                    
                     pnl = float(t.get("PnL", 0))
                     equity += pnl
                     curve.append({
@@ -274,23 +225,12 @@ class BacktestAnalyzer:
                     })
                 except Exception:
                     continue
-
         return curve
 
     def _calculate_drawdown_curve(self, trades: List[Dict]) -> List[Dict]:
-        """
-        Calculate drawdown curve from trade history.
-
-        Args:
-            trades: List of closed trade dictionaries
-
-        Returns:
-            List of dictionaries with 'Date' and 'Drawdown' keys
-        """
         if not trades:
             return []
 
-        # Sort trades by date
         sorted_trades = sorted(
             trades,
             key=lambda x: x.get("ExitDate", pd.Timestamp.min)
@@ -299,12 +239,10 @@ class BacktestAnalyzer:
         equity = 0.0
         peak = 0.0
         curve = []
-
         for t in sorted_trades:
             exit_date = t.get("ExitDate")
             if exit_date is not None:
                 try:
-                    # Handle date conversion
                     if hasattr(exit_date, "strftime"):
                         date_str = exit_date.strftime("%Y-%m-%d")
                     else:
@@ -313,19 +251,16 @@ class BacktestAnalyzer:
                             date_str = date_obj.strftime("%Y-%m-%d")
                         except Exception:
                             continue
-                    
                     pnl = float(t.get("PnL", 0))
                     equity += pnl
                     peak = max(peak, equity)
                     drawdown = round(equity - peak, 2)
-                    
                     curve.append({
                         "Date": date_str,
                         "Drawdown": drawdown
                     })
                 except Exception:
                     continue
-
         return curve
 
     def _calculate_ai_score(
@@ -336,34 +271,15 @@ class BacktestAnalyzer:
         max_drawdown: float,
         total_trades: int,
         avg_r_multiple: float,
-        avg_holding_days: float,
         wins: int,
         losses: int
     ) -> int:
-        """
-        Calculate AI Score (0-100) based on multiple performance metrics.
-
-        Args:
-            win_rate: Win rate percentage
-            profit_factor: Profit factor
-            expectancy: Expectancy per trade
-            max_drawdown: Maximum drawdown
-            total_trades: Total number of closed trades
-            avg_r_multiple: Average R multiple
-            avg_holding_days: Average holding days
-            wins: Number of winning trades
-            losses: Number of losing trades
-
-        Returns:
-            AI Score as integer between 0 and 100
-        """
         if total_trades == 0:
             return 0
 
-        # Base score starts at 50 (neutral)
         score = 50.0
 
-        # Win rate component (0 to +20 points)
+        # Win rate component
         if win_rate >= 60:
             score += 10
         elif win_rate >= 50:
@@ -373,7 +289,7 @@ class BacktestAnalyzer:
         else:
             score -= 10
 
-        # Profit factor component (0 to +20 points)
+        # Profit factor component
         if profit_factor >= 2.0:
             score += 15
         elif profit_factor >= 1.5:
@@ -383,7 +299,7 @@ class BacktestAnalyzer:
         else:
             score -= 10
 
-        # Expectancy component (0 to +15 points)
+        # Expectancy component
         if expectancy >= 2.0:
             score += 10
         elif expectancy >= 1.0:
@@ -393,7 +309,7 @@ class BacktestAnalyzer:
         else:
             score -= 5
 
-        # Drawdown penalty (0 to -20 points)
+        # Drawdown penalty
         if max_drawdown <= -100:
             score -= 20
         elif max_drawdown <= -50:
@@ -403,7 +319,7 @@ class BacktestAnalyzer:
         elif max_drawdown <= -10:
             score -= 5
 
-        # R multiple bonus (0 to +10 points)
+        # R multiple bonus
         if avg_r_multiple >= 2.0:
             score += 10
         elif avg_r_multiple >= 1.5:
@@ -413,22 +329,13 @@ class BacktestAnalyzer:
 
         # Sample size adjustment
         if total_trades < 10:
-            score *= 0.5  # Penalty for small sample
+            score *= 0.5
         elif total_trades >= 50:
-            score *= 1.1  # Bonus for large sample
+            score *= 1.1
 
-        # Ensure score is within 0-100 range
-        ai_score = max(0, min(100, int(round(score))))
-
-        return ai_score
+        return max(0, min(100, int(round(score))))
 
     def _empty_analysis(self) -> Dict[str, Any]:
-        """
-        Return an empty analysis dictionary with default values.
-
-        Returns:
-            Dictionary with all metrics set to zero
-        """
         return {
             "Total Trades": 0,
             "Closed Trades": 0,
