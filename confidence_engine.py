@@ -1,6 +1,8 @@
 import logging
 import pandas as pd
 
+from config import *  # <-- YEH IMPORT MISSING THA. Isse fix kar diya.
+
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
