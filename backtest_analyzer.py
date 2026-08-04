@@ -1,92 +1,164 @@
 import pandas as pd
 import numpy as np
+from typing import Dict, Any, List, Optional
 
 
 class BacktestAnalyzer:
-    """Advanced backtest analysis with AI Score and performance metrics."""
+    """
+    Advanced backtest analysis engine for AI Stock Scanner V1.4.
+    Calculates comprehensive performance metrics including:
+    - Trade statistics (wins, losses, break-even, open trades)
+    - Risk metrics (profit factor, expectancy, drawdown)
+    - Target achievement (T1, T2, T3)
+    - AI Score (0-100) for strategy evaluation
+    - Equity and drawdown curves
+    - Monthly P&L breakdown
+    """
 
-    def analyze(self, report: dict) -> dict:
+    def __init__(self):
+        """Initialize the BacktestAnalyzer with default settings."""
+        self.min_trades_for_ranking = 5
+
+    def analyze(self, report: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Analyze a backtest report and return comprehensive metrics.
+
+        Args:
+            report: Dictionary containing backtest results with 'Trades' key
+
+        Returns:
+            Dictionary with all performance metrics
+        """
+        # Validate input
         if not isinstance(report, dict):
-            return {}
-
-        trades = report.get("Trades", [])
-        if not trades:
             return self._empty_analysis()
 
-        total = len(trades)
-        wins = sum(1 for t in trades if t.get("Status") == "WIN")
-        losses = sum(1 for t in trades if t.get("Status") == "LOSS")
-        break_even = sum(1 for t in trades if t.get("Status") == "BREAK_EVEN")
-        opens = sum(1 for t in trades if t.get("Status") == "OPEN")
-        closed = wins + losses + break_even
+        trades = report.get("Trades", [])
+        if not trades or not isinstance(trades, list):
+            return self._empty_analysis()
 
-        win_rate = round((wins / closed) * 100, 2) if closed > 0 else 0
-        loss_rate = round((losses / closed) * 100, 2) if closed > 0 else 0
+        # Filter out open trades for closed trade statistics
+        closed_trades = [t for t in trades if t.get("Status") not in ["OPEN", "OPEN_PROFIT", "OPEN_LOSS"]]
+        open_trades = [t for t in trades if t.get("Status") in ["OPEN", "OPEN_PROFIT", "OPEN_LOSS"]]
 
-        pnls = [float(t.get("PnL", 0)) for t in trades if t.get("Status") != "OPEN"]
+        # Basic counts
+        total_trades = len(closed_trades)
+        open_trades_count = len(open_trades)
+
+        if total_trades == 0:
+            return self._empty_analysis()
+
+        # Win/Loss/Break-even counts
+        wins = sum(1 for t in closed_trades if t.get("Status") == "WIN")
+        losses = sum(1 for t in closed_trades if t.get("Status") == "LOSS")
+        break_even = sum(1 for t in closed_trades if t.get("Status") == "BREAK_EVEN")
+
+        # Win/Loss rates
+        win_rate = round((wins / total_trades) * 100, 2) if total_trades > 0 else 0.0
+        loss_rate = round((losses / total_trades) * 100, 2) if total_trades > 0 else 0.0
+
+        # P&L calculations
+        pnls = [float(t.get("PnL", 0)) for t in closed_trades]
         total_pnl = round(sum(pnls), 2)
 
         profits = [p for p in pnls if p > 0]
         losses_list = [p for p in pnls if p < 0]
 
-        avg_profit = round(sum(profits) / len(profits), 2) if profits else 0
-        avg_loss = round(sum(losses_list) / len(losses_list), 2) if losses_list else 0
+        avg_profit = round(sum(profits) / len(profits), 2) if profits else 0.0
+        avg_loss = round(sum(losses_list) / len(losses_list), 2) if losses_list else 0.0
 
+        # Profit factor
         gross_profit = sum(profits)
         gross_loss = abs(sum(losses_list))
-        profit_factor = round(gross_profit / gross_loss, 2) if gross_loss > 0 else 0
-
-        best_trade = round(max(pnls), 2) if pnls else 0
-        worst_trade = round(min(pnls), 2) if pnls else 0
-
-        # Max drawdown
-        equity = 0
-        peak = 0
-        max_dd = 0
-        for p in pnls:
-            equity += p
-            peak = max(peak, equity)
-            max_dd = min(max_dd, equity - peak)
-        max_drawdown = round(max_dd, 2)
-
-        # Target hits
-        target1_wins = sum(1 for t in trades if t.get("TargetHit") == "TARGET1")
-        target2_wins = sum(1 for t in trades if t.get("TargetHit") == "TARGET2")
-        target3_wins = sum(1 for t in trades if t.get("TargetHit") == "TARGET3")
-
-        # Consecutive wins/losses
-        cur_w = cur_l = max_w = max_l = 0
-        for t in trades:
-            status = t.get("Status")
-            if status == "WIN":
-                cur_w += 1
-                cur_l = 0
-            elif status == "LOSS":
-                cur_l += 1
-                cur_w = 0
-            else:
-                continue
-            max_w = max(max_w, cur_w)
-            max_l = max(max_l, cur_l)
+        profit_factor = round(gross_profit / gross_loss, 2) if gross_loss > 0 else 0.0
 
         # Expectancy
-        expectancy = round(total_pnl / closed, 2) if closed > 0 else 0
+        expectancy = round(
+            (wins / total_trades * avg_profit) + (losses / total_trades * avg_loss),
+            2
+        ) if total_trades > 0 else 0.0
 
-        # AI Score (0-100) - combines multiple metrics
+        # Best and worst trades
+        best_trade = round(max(pnls), 2) if pnls else 0.0
+        worst_trade = round(min(pnls), 2) if pnls else 0.0
+
+        # Consecutive wins and losses
+        max_consecutive_wins = 0
+        max_consecutive_losses = 0
+        current_wins = 0
+        current_losses = 0
+
+        for t in closed_trades:
+            status = t.get("Status")
+            if status == "WIN":
+                current_wins += 1
+                current_losses = 0
+                max_consecutive_wins = max(max_consecutive_wins, current_wins)
+            elif status == "LOSS":
+                current_losses += 1
+                current_wins = 0
+                max_consecutive_losses = max(max_consecutive_losses, current_losses)
+            elif status == "BREAK_EVEN":
+                # Break-even resets both counters
+                current_wins = 0
+                current_losses = 0
+
+        # Average R multiple
+        r_multiples = [float(t.get("RMultiple", 0)) for t in closed_trades if t.get("RMultiple", 0) != 0]
+        avg_r_multiple = round(sum(r_multiples) / len(r_multiples), 2) if r_multiples else 0.0
+
+        # Average holding days
+        holding_days = [
+            int(t.get("HoldingDays", 0))
+            for t in closed_trades
+            if t.get("HoldingDays", 0) is not None and t.get("HoldingDays", 0) > 0
+        ]
+        avg_holding_days = round(sum(holding_days) / len(holding_days), 1) if holding_days else 0.0
+
+        # Target hits
+        target1_wins = sum(1 for t in closed_trades if t.get("TargetHit") == "TARGET1")
+        target2_wins = sum(1 for t in closed_trades if t.get("TargetHit") == "TARGET2")
+        target3_wins = sum(1 for t in closed_trades if t.get("TargetHit") == "TARGET3")
+
+        # Max drawdown (from closed trades only)
+        equity = 0.0
+        peak = 0.0
+        max_drawdown = 0.0
+
+        for pnl in pnls:
+            equity += pnl
+            peak = max(peak, equity)
+            drawdown = equity - peak
+            max_drawdown = min(max_drawdown, drawdown)
+
+        max_drawdown = round(max_drawdown, 2)
+
+        # Monthly P&L
+        monthly_pnl = self._calculate_monthly_pnl(closed_trades)
+
+        # Equity curve
+        equity_curve = self._calculate_equity_curve(closed_trades)
+
+        # Drawdown curve
+        drawdown_curve = self._calculate_drawdown_curve(closed_trades)
+
+        # AI Score (0-100)
         ai_score = self._calculate_ai_score(
             win_rate=win_rate,
             profit_factor=profit_factor,
             expectancy=expectancy,
             max_drawdown=max_drawdown,
-            total_trades=total,
-            avg_r=report.get("Average R", 0),
-            avg_hold_days=report.get("Average Holding Days", 0)
+            total_trades=total_trades,
+            avg_r_multiple=avg_r_multiple,
+            avg_holding_days=avg_holding_days,
+            wins=wins,
+            losses=losses
         )
 
         # Strategy status
-        if closed < 10:
+        if total_trades < 10:
             strategy_status = "INSUFFICIENT DATA"
-        elif profit_factor > 1.5 and expectancy > 0:
+        elif profit_factor > 1.5 and expectancy > 0 and win_rate > 50:
             strategy_status = "STRONG"
         elif profit_factor > 1.0 and expectancy > 0:
             strategy_status = "PROFITABLE"
@@ -94,83 +166,297 @@ class BacktestAnalyzer:
             strategy_status = "WEAK"
 
         return {
-            "Total Trades": total,
-            "Closed Trades": closed,
+            "Total Trades": total_trades,
+            "Closed Trades": total_trades,
+            "Open Trades": open_trades_count,
             "Wins": wins,
             "Losses": losses,
-            "BreakEven": break_even,
-            "Open": opens,
+            "Break Even": break_even,
             "Win Rate": win_rate,
             "Loss Rate": loss_rate,
             "Total PnL": total_pnl,
             "Average Profit": avg_profit,
             "Average Loss": avg_loss,
             "Profit Factor": profit_factor,
+            "Expectancy": expectancy,
             "Max Drawdown": max_drawdown,
+            "Best Trade": best_trade,
+            "Worst Trade": worst_trade,
+            "Consecutive Wins": max_consecutive_wins,
+            "Consecutive Losses": max_consecutive_losses,
+            "Average Holding Days": avg_holding_days,
+            "Average R Multiple": avg_r_multiple,
+            "Monthly PnL": monthly_pnl,
+            "Equity Curve": equity_curve,
+            "Drawdown Curve": drawdown_curve,
+            "AI Score": ai_score,
+            "Strategy Status": strategy_status,
             "Target1 Wins": target1_wins,
             "Target2 Wins": target2_wins,
             "Target3 Wins": target3_wins,
-            "Best Trade": best_trade,
-            "Worst Trade": worst_trade,
-            "Consecutive Wins": max_w,
-            "Consecutive Losses": max_l,
-            "Expectancy": expectancy,
-            "AI Score": ai_score,
-            "Status": strategy_status
+            "Trades": closed_trades
         }
 
-    def _calculate_ai_score(self, win_rate: float, profit_factor: float,
-                           expectancy: float, max_drawdown: float,
-                           total_trades: int, avg_r: float,
-                           avg_hold_days: float) -> int:
-        """Calculate AI Score (0-100) based on multiple performance metrics."""
+    def _calculate_monthly_pnl(self, trades: List[Dict]) -> Dict[str, float]:
+        """
+        Calculate monthly P&L from trade history.
+
+        Args:
+            trades: List of closed trade dictionaries
+
+        Returns:
+            Dictionary with month keys and P&L values
+        """
+        monthly = {}
+        for t in trades:
+            exit_date = t.get("ExitDate")
+            if exit_date is not None:
+                try:
+                    # Handle different date formats
+                    if hasattr(exit_date, "strftime"):
+                        month_key = exit_date.strftime("%Y-%m")
+                    else:
+                        # Convert string to datetime if needed
+                        try:
+                            date_obj = pd.to_datetime(exit_date)
+                            month_key = date_obj.strftime("%Y-%m")
+                        except Exception:
+                            continue
+                    
+                    pnl = float(t.get("PnL", 0))
+                    monthly[month_key] = monthly.get(month_key, 0) + pnl
+                except Exception:
+                    continue
+        
+        return monthly
+
+    def _calculate_equity_curve(self, trades: List[Dict]) -> List[Dict]:
+        """
+        Calculate equity curve from trade history.
+
+        Args:
+            trades: List of closed trade dictionaries
+
+        Returns:
+            List of dictionaries with 'Date' and 'Equity' keys
+        """
+        if not trades:
+            return []
+
+        # Sort trades by date
+        sorted_trades = sorted(
+            trades,
+            key=lambda x: x.get("ExitDate", pd.Timestamp.min)
+        )
+
+        equity = 0.0
+        curve = []
+        
+        for t in sorted_trades:
+            exit_date = t.get("ExitDate")
+            if exit_date is not None:
+                try:
+                    # Handle date conversion
+                    if hasattr(exit_date, "strftime"):
+                        date_str = exit_date.strftime("%Y-%m-%d")
+                    else:
+                        try:
+                            date_obj = pd.to_datetime(exit_date)
+                            date_str = date_obj.strftime("%Y-%m-%d")
+                        except Exception:
+                            continue
+                    
+                    pnl = float(t.get("PnL", 0))
+                    equity += pnl
+                    curve.append({
+                        "Date": date_str,
+                        "Equity": round(equity, 2)
+                    })
+                except Exception:
+                    continue
+
+        return curve
+
+    def _calculate_drawdown_curve(self, trades: List[Dict]) -> List[Dict]:
+        """
+        Calculate drawdown curve from trade history.
+
+        Args:
+            trades: List of closed trade dictionaries
+
+        Returns:
+            List of dictionaries with 'Date' and 'Drawdown' keys
+        """
+        if not trades:
+            return []
+
+        # Sort trades by date
+        sorted_trades = sorted(
+            trades,
+            key=lambda x: x.get("ExitDate", pd.Timestamp.min)
+        )
+
+        equity = 0.0
+        peak = 0.0
+        curve = []
+
+        for t in sorted_trades:
+            exit_date = t.get("ExitDate")
+            if exit_date is not None:
+                try:
+                    # Handle date conversion
+                    if hasattr(exit_date, "strftime"):
+                        date_str = exit_date.strftime("%Y-%m-%d")
+                    else:
+                        try:
+                            date_obj = pd.to_datetime(exit_date)
+                            date_str = date_obj.strftime("%Y-%m-%d")
+                        except Exception:
+                            continue
+                    
+                    pnl = float(t.get("PnL", 0))
+                    equity += pnl
+                    peak = max(peak, equity)
+                    drawdown = round(equity - peak, 2)
+                    
+                    curve.append({
+                        "Date": date_str,
+                        "Drawdown": drawdown
+                    })
+                except Exception:
+                    continue
+
+        return curve
+
+    def _calculate_ai_score(
+        self,
+        win_rate: float,
+        profit_factor: float,
+        expectancy: float,
+        max_drawdown: float,
+        total_trades: int,
+        avg_r_multiple: float,
+        avg_holding_days: float,
+        wins: int,
+        losses: int
+    ) -> int:
+        """
+        Calculate AI Score (0-100) based on multiple performance metrics.
+
+        Args:
+            win_rate: Win rate percentage
+            profit_factor: Profit factor
+            expectancy: Expectancy per trade
+            max_drawdown: Maximum drawdown
+            total_trades: Total number of closed trades
+            avg_r_multiple: Average R multiple
+            avg_holding_days: Average holding days
+            wins: Number of winning trades
+            losses: Number of losing trades
+
+        Returns:
+            AI Score as integer between 0 and 100
+        """
         if total_trades == 0:
             return 0
 
-        # Win rate component (0-30)
-        win_rate_score = min(30, win_rate * 0.3)
+        # Base score starts at 50 (neutral)
+        score = 50.0
 
-        # Profit factor component (0-25)
-        pf_score = min(25, profit_factor * 5)
+        # Win rate component (0 to +20 points)
+        if win_rate >= 60:
+            score += 10
+        elif win_rate >= 50:
+            score += 5
+        elif win_rate >= 40:
+            score -= 5
+        else:
+            score -= 10
 
-        # Expectancy component (0-20)
-        exp_score = min(20, max(0, expectancy))
+        # Profit factor component (0 to +20 points)
+        if profit_factor >= 2.0:
+            score += 15
+        elif profit_factor >= 1.5:
+            score += 10
+        elif profit_factor >= 1.0:
+            score += 5
+        else:
+            score -= 10
 
-        # Drawdown penalty (0-15)
-        dd_penalty = min(15, max_drawdown * 0.15)
+        # Expectancy component (0 to +15 points)
+        if expectancy >= 2.0:
+            score += 10
+        elif expectancy >= 1.0:
+            score += 5
+        elif expectancy >= 0.0:
+            score += 2
+        else:
+            score -= 5
 
-        # Average R component (0-10)
-        r_score = min(10, avg_r * 2)
+        # Drawdown penalty (0 to -20 points)
+        if max_drawdown <= -100:
+            score -= 20
+        elif max_drawdown <= -50:
+            score -= 15
+        elif max_drawdown <= -20:
+            score -= 10
+        elif max_drawdown <= -10:
+            score -= 5
 
-        # Total
-        raw_score = win_rate_score + pf_score + exp_score - dd_penalty + r_score
-        ai_score = max(0, min(100, int(raw_score)))
+        # R multiple bonus (0 to +10 points)
+        if avg_r_multiple >= 2.0:
+            score += 10
+        elif avg_r_multiple >= 1.5:
+            score += 5
+        elif avg_r_multiple >= 1.0:
+            score += 2
+
+        # Sample size adjustment
+        if total_trades < 10:
+            score *= 0.5  # Penalty for small sample
+        elif total_trades >= 50:
+            score *= 1.1  # Bonus for large sample
+
+        # Ensure score is within 0-100 range
+        ai_score = max(0, min(100, int(round(score))))
 
         return ai_score
 
-    def _empty_analysis(self) -> dict:
+    def _empty_analysis(self) -> Dict[str, Any]:
+        """
+        Return an empty analysis dictionary with default values.
+
+        Returns:
+            Dictionary with all metrics set to zero
+        """
         return {
             "Total Trades": 0,
             "Closed Trades": 0,
+            "Open Trades": 0,
             "Wins": 0,
             "Losses": 0,
-            "BreakEven": 0,
-            "Open": 0,
-            "Win Rate": 0,
-            "Loss Rate": 0,
-            "Total PnL": 0,
-            "Average Profit": 0,
-            "Average Loss": 0,
-            "Profit Factor": 0,
-            "Max Drawdown": 0,
+            "Break Even": 0,
+            "Win Rate": 0.0,
+            "Loss Rate": 0.0,
+            "Total PnL": 0.0,
+            "Average Profit": 0.0,
+            "Average Loss": 0.0,
+            "Profit Factor": 0.0,
+            "Expectancy": 0.0,
+            "Max Drawdown": 0.0,
+            "Best Trade": 0.0,
+            "Worst Trade": 0.0,
+            "Consecutive Wins": 0,
+            "Consecutive Losses": 0,
+            "Average Holding Days": 0.0,
+            "Average R Multiple": 0.0,
+            "Monthly PnL": {},
+            "Equity Curve": [],
+            "Drawdown Curve": [],
+            "AI Score": 0,
+            "Strategy Status": "NO TRADES",
             "Target1 Wins": 0,
             "Target2 Wins": 0,
             "Target3 Wins": 0,
-            "Best Trade": 0,
-            "Worst Trade": 0,
-            "Consecutive Wins": 0,
-            "Consecutive Losses": 0,
-            "Expectancy": 0,
-            "AI Score": 0,
-            "Status": "NO TRADES"
+            "Trades": []
         }
