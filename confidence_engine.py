@@ -9,19 +9,17 @@ class ConfidenceEngine:
     """Calculates confidence score from multiple weighted components."""
 
     def __init__(self):
-        self.weight_strategy = 0.40
-        self.weight_trend = 0.25
-        self.weight_pattern = 0.20
-        self.weight_volume = 0.10
-        self.weight_atr = 0.05
+        self.weight_strategy = CONFIDENCE_WEIGHT_STRATEGY
+        self.weight_trend = CONFIDENCE_WEIGHT_TREND
+        self.weight_pattern = CONFIDENCE_WEIGHT_PATTERN
+        self.weight_volume = CONFIDENCE_WEIGHT_VOLUME
+        self.weight_atr = CONFIDENCE_WEIGHT_ATR
 
     def _compute_atr_quality(self, atr: float) -> float:
-        """Return a quality score for ATR (simplified)."""
+        """Return a quality score for ATR."""
         if atr <= 0:
             return 0.0
-        # This is a simplified placeholder – in production you would compare
-        # against a moving average. For now we return 50 (neutral).
-        return 50.0
+        return min(100, atr * 10)  # Simplified quality metric
 
     def calculate(
         self,
