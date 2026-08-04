@@ -36,9 +36,15 @@ class IndicatorEngine:
 
         avg_loss = loss.rolling(period).mean()
 
-        rs = avg_gain / avg_loss
+        # Prevent division by zero
+        avg_loss_safe = avg_loss.replace(0, np.nan)
+
+        rs = avg_gain / avg_loss_safe
 
         rsi = 100 - (100 / (1 + rs))
+
+        # Fill NaN values with 50 (neutral) if needed
+        rsi = rsi.fillna(50)
 
         return rsi
 
@@ -86,25 +92,25 @@ class IndicatorEngine:
         data["ATR"] = self.atr(data)
 
         return data
-      
+
     # ===============================
     # MACD
     # ===============================
 
     def macd(self, data):
 
-        ema12 = data["Close"].ewm(span=12, adjust=False).mean()
+        # Use config constants
+        ema12 = data["Close"].ewm(span=MACD_FAST, adjust=False).mean()
 
-        ema26 = data["Close"].ewm(span=26, adjust=False).mean()
+        ema26 = data["Close"].ewm(span=MACD_SLOW, adjust=False).mean()
 
         macd = ema12 - ema26
 
-        signal = macd.ewm(span=9, adjust=False).mean()
+        signal = macd.ewm(span=MACD_SIGNAL, adjust=False).mean()
 
         histogram = macd - signal
 
         return macd, signal, histogram
-
 
     # ===============================
     # VWAP
@@ -118,11 +124,12 @@ class IndicatorEngine:
             data["Close"]
         ) / 3
 
-        return (
-            (tp * data["Volume"]).cumsum()
-            / data["Volume"].cumsum()
-        )
+        vol_cum = data["Volume"].cumsum()
 
+        # Prevent division by zero
+        vol_cum_safe = vol_cum.replace(0, 1)
+
+        return ((tp * data["Volume"]).cumsum() / vol_cum_safe)
 
     # ===============================
     # Volume Average
@@ -132,17 +139,16 @@ class IndicatorEngine:
 
         return data["Volume"].rolling(period).mean()
 
-
     # ===============================
     # Volume Spike
     # ===============================
 
-    def volume_spike(self, data):
+    def volume_spike(self, data, vol_ma=None):
 
-        avg = self.volume_ma(data)
+        if vol_ma is None:
+            vol_ma = self.volume_ma(data)
 
-        return data["Volume"] > (avg * 1.5)
-
+        return data["Volume"] > (vol_ma * 1.5)
 
     # ===============================
     # Add Advanced Indicators
@@ -162,15 +168,19 @@ class IndicatorEngine:
 
         data["VOL_MA"] = self.volume_ma(data)
 
-        data["VOL_SPIKE"] = self.volume_spike(data)
+        # Use precomputed VOL_MA for volume spike
+        data["VOL_SPIKE"] = self.volume_spike(data, vol_ma=data["VOL_MA"])
 
         return data
-      
+
     # ===============================
     # Trend Score
     # ===============================
 
     def trend_score(self, data):
+
+        if data.empty:
+            return 0
 
         score = 0
 
@@ -191,12 +201,14 @@ class IndicatorEngine:
 
         return score
 
-
     # ===============================
     # Momentum Score
     # ===============================
 
     def momentum_score(self, data):
+
+        if data.empty:
+            return 0
 
         score = 0
 
@@ -208,17 +220,25 @@ class IndicatorEngine:
         if data["MACD_HIST"].iloc[-1] > 0:
             score += 30
 
-        if data["ATR"].iloc[-1] > data["ATR"].rolling(20).mean().iloc[-1]:
+        # Improved ATR comparison with min_periods to avoid NaN
+        atr_ma = data["ATR"].rolling(20, min_periods=1).mean()
+        if data["ATR"].iloc[-1] > atr_ma.iloc[-1]:
             score += 30
 
         return score
-
 
     # ===============================
     # Final Indicator Score
     # ===============================
 
     def final_score(self, data):
+
+        if data.empty:
+            return {
+                "trend_score": 0,
+                "momentum_score": 0,
+                "total_score": 0
+            }
 
         trend = self.trend_score(data)
 
@@ -232,7 +252,6 @@ class IndicatorEngine:
             "total_score": total
         }
 
-
     # ===============================
     # Process Complete Data
     # ===============================
@@ -244,6 +263,9 @@ class IndicatorEngine:
         data = self.add_advanced_indicators(data)
 
         data["TrendScore"] = self.trend_score(data)
+
+        # Ensure no NaN values remain after indicator calculations
+        data = data.fillna(method="bfill").fillna(method="ffill")
 
         score = self.final_score(data)
 
