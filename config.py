@@ -1,5 +1,5 @@
 # ============================================
-# AI STOCK SCANNER V1.3
+# AI STOCK SCANNER V1.4
 # CONFIGURATION FILE
 # ============================================
 
@@ -48,7 +48,7 @@ MACD_SIGNAL = 9
 # Watchlist
 WATCHLIST_ONLY = False
 
-# Signal Score Threshold (for compatibility with signal_engine if still used)
+# Signal Score Threshold
 BUY_SCORE = 60
 SELL_SCORE = 60
 
@@ -56,7 +56,7 @@ SELL_SCORE = 60
 STRATEGY_BUY_THRESHOLD = 60
 STRATEGY_SELL_THRESHOLD = 60
 
-# Confidence Engine Weights (sum = 1.0)
+# Confidence Engine Weights
 CONFIDENCE_WEIGHT_STRATEGY = 0.40
 CONFIDENCE_WEIGHT_TREND = 0.25
 CONFIDENCE_WEIGHT_PATTERN = 0.20
