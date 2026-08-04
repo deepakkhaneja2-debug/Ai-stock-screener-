@@ -1,5 +1,6 @@
 import logging
 import pandas as pd
+import numpy as np
 from typing import Dict, List, Union
 
 logger = logging.getLogger(__name__)
@@ -7,12 +8,16 @@ logger.setLevel(logging.INFO)
 
 
 class StrategyEngine:
-    """Combines multiple strategies to generate BUY/SELL/WATCH signals."""
+    """
+    Combines multiple strategies with improved weighting.
+    Enhanced to reduce false signals using confirmation logic.
+    """
 
     def __init__(self):
         self.max_score_per_strategy = 20
-        self.buy_threshold = 60
-        self.sell_threshold = 60
+        self.buy_threshold = 65        # Increased for better accuracy
+        self.sell_threshold = 65
+        self.confirmation_candles = 2  # Require confirmation
 
     def _safe_get_last(self, data: pd.DataFrame, column: str, default: float = 0.0) -> float:
         if data.empty or column not in data.columns:
@@ -32,19 +37,40 @@ class StrategyEngine:
         except Exception:
             return False
 
+    def _confirm_signal(self, data: pd.DataFrame, column: str, direction: str) -> bool:
+        """Check if signal persists for confirmation candles."""
+        if data.empty or column not in data.columns:
+            return False
+        try:
+            # Look back at last N candles
+            last_n = data[column].iloc[-self.confirmation_candles:]
+            if direction == "bullish":
+                return all(last_n > 0)
+            elif direction == "bearish":
+                return all(last_n < 0)
+            return False
+        except Exception:
+            return False
+
     # ---------- Individual Strategies ----------
+
     def _ema_trend(self, data: pd.DataFrame) -> int:
         if data.empty:
             return 0
         ema20 = self._safe_get_last(data, "EMA20")
         ema50 = self._safe_get_last(data, "EMA50")
         close = self._safe_get_last(data, "Close")
+        
         if ema20 == 0 or ema50 == 0:
             return 0
+            
+        # Require price confirmation
         if ema20 > ema50 and close > ema20:
-            return 20
+            if self._confirm_signal(data, "EMA20", "bullish"):
+                return 20
         elif ema20 < ema50 and close < ema20:
-            return -20
+            if self._confirm_signal(data, "EMA20", "bearish"):
+                return -20
         return 0
 
     def _macd(self, data: pd.DataFrame) -> int:
@@ -52,10 +78,16 @@ class StrategyEngine:
             return 0
         macd = self._safe_get_last(data, "MACD")
         signal = self._safe_get_last(data, "MACD_SIGNAL")
+        
         if macd > signal:
-            return 20
+            # Require histogram positive for confirmation
+            hist = self._safe_get_last(data, "MACD_HIST", 0)
+            if hist > 0 and self._confirm_signal(data, "MACD", "bullish"):
+                return 20
         elif macd < signal:
-            return -20
+            hist = self._safe_get_last(data, "MACD_HIST", 0)
+            if hist < 0 and self._confirm_signal(data, "MACD", "bearish"):
+                return -20
         return 0
 
     def _rsi(self, data: pd.DataFrame) -> int:
@@ -64,9 +96,11 @@ class StrategyEngine:
         rsi = self._safe_get_last(data, "RSI")
         if rsi == 0:
             return 0
-        if 55 <= rsi <= 70:
+            
+        # Narrower RSI range for better accuracy
+        if 55 <= rsi <= 65:   # Strong bullish zone
             return 20
-        elif 30 <= rsi <= 45:
+        elif 35 <= rsi <= 45:  # Strong bearish zone
             return -20
         return 0
 
@@ -78,6 +112,8 @@ class StrategyEngine:
             return 0
         close = self._safe_get_last(data, "Close")
         vwap = self._safe_get_last(data, "VWAP")
+        
+        # Volume spike with price confirmation
         if close > vwap:
             return 20
         elif close < vwap:
@@ -89,6 +125,7 @@ class StrategyEngine:
             return 0
         bullish = ["BULLISH_ENGULFING", "HAMMER", "MORNING_STAR", "INSIDE_BAR"]
         bearish = ["BEARISH_ENGULFING", "SHOOTING_STAR", "EVENING_STAR"]
+        
         for pat in bullish:
             if self._safe_get_bool(data, pat):
                 return 20
@@ -102,9 +139,13 @@ class StrategyEngine:
             return 0
         up = self._safe_get_bool(data, "BREAKOUT_UP")
         down = self._safe_get_bool(data, "BREAKOUT_DOWN")
-        if up:
+        
+        # Require volume confirmation for breakout
+        vol_spike = self._safe_get_bool(data, "VOL_SPIKE")
+        
+        if up and vol_spike:
             return 20
-        elif down:
+        elif down and vol_spike:
             return -20
         return 0
 
@@ -146,6 +187,7 @@ class StrategyEngine:
             norm_score = ((total + max_total) / (2 * max_total)) * 100
             norm_score = max(0, min(100, round(norm_score)))
 
+            # Stricter threshold for better accuracy
             if norm_score >= self.buy_threshold:
                 signal = "BUY"
             elif norm_score <= (100 - self.sell_threshold):
