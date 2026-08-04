@@ -5,6 +5,7 @@ from config import *
 
 
 class RiskEngine:
+    """Calculates entry, stop‑loss, targets, and position size."""
 
     def __init__(self):
         self.risk_percent = 1.0
@@ -12,151 +13,40 @@ class RiskEngine:
         self.max_open_trades = 5
         self.max_daily_loss = 3.0
 
-    # =========================================
-    # ATR STOP LOSS
-    # =========================================
+    def _safe_get(self, data: pd.DataFrame, column: str, default: float = 0.0) -> float:
+        if data.empty or column not in data.columns:
+            return default
+        try:
+            val = data[column].iloc[-1]
+            return float(val) if pd.notna(val) else default
+        except Exception:
+            return default
 
-    def atr_stoploss(self, data):
+    def trade_plan(self, data: pd.DataFrame, capital: float) -> dict:
+        """Return a complete trade plan with entry, targets, stop, and quantity."""
+        if data.empty:
+            return {}
 
-        last = data.iloc[-1]
+        required = ["Close", "ATR"]
+        if not all(col in data.columns for col in required):
+            return {}
 
-        return last["Close"] - (last["ATR"] * 2)
+        current_price = self._safe_get(data, "Close")
+        atr = self._safe_get(data, "ATR")
 
-    # =========================================
-    # SWING STOP LOSS
-    # =========================================
-
-    def swing_stoploss(self, data):
-
-        return data["Low"].rolling(10).min().iloc[-1]
-
-    # =========================================
-    # FINAL STOP LOSS
-    # =========================================
-
-    def stoploss(self, data):
-
-        atr = self.atr_stoploss(data)
-
-        swing = self.swing_stoploss(data)
-
-        return min(atr, swing)
-
-    # =========================================
-    # TARGET
-    # =========================================
-
-    def target(self, entry, sl):
-
-        risk = entry - sl
-
-        return entry + (risk * self.reward_ratio)
-
-    # =========================================
-    # POSITION SIZE
-    # =========================================
-
-    def quantity(self,
-                 capital,
-                 entry,
-                 sl):
-
-        risk_amount = capital * self.risk_percent / 100
-
-        risk_per_share = abs(entry - sl)
-
-        if risk_per_share <= 0:
-
-            return 0
-
-        qty = math.floor(risk_amount / risk_per_share)
-
-        return max(qty, 0)
-
-    # =========================================
-    # TRAILING STOP
-    # =========================================
-
-    def trailing_sl(self,
-                    current_price,
-                    old_sl,
-                    atr):
-
-        tsl = current_price - (atr * 2)
-
-        return max(old_sl, tsl)
-
-    # =========================================
-    # RISK SCORE
-    # =========================================
-
-    def risk_score(self,
-                   entry,
-                   sl):
-
-        risk = abs(entry - sl)
-
-        if risk <= 1:
-            return 100
-
-        elif risk <= 2:
-            return 80
-
-        elif risk <= 3:
-            return 60
-
-        return 40
-
-    # =========================================
-    # REWARD SCORE
-    # =========================================
-
-    def reward_score(self,
-                     entry,
-                     target):
-
-        reward = abs(target - entry)
-
-        if reward >= 6:
-            return 100
-
-        elif reward >= 4:
-            return 80
-
-        elif reward >= 2:
-            return 60
-
-        return 40
-
-    # =========================================
-    # FINAL TRADE PLAN
-    # =========================================
-
-    def trade_plan(self, data, capital):
-
-        last = data.iloc[-1]
-
-        current_price = float(last["Close"])
-        atr = float(last["ATR"])
+        if atr <= 0:
+            return {}
 
         entry = round(current_price + atr * 0.25, 2)
-
         stoploss = round(entry - atr * 1.5, 2)
 
-        target1 = round(entry + (entry - stoploss) * 1.5, 2)
-        target2 = round(entry + (entry - stoploss) * 2.5, 2)
-        target3 = round(entry + (entry - stoploss) * 4.0, 2)
-
-        qty = self.quantity(
-            capital,
-            entry,
-            stoploss
-        )
-
         risk = entry - stoploss
-        reward = target2 - entry
+        target1 = round(entry + risk * 1.5, 2)
+        target2 = round(entry + risk * 2.5, 2)
+        target3 = round(entry + risk * 4.0, 2)
 
-        rr = round(reward / risk, 2) if risk > 0 else 0
+        qty = self._quantity(capital, entry, stoploss)
+        rr = round((target2 - entry) / risk, 2) if risk > 0 else 0
 
         return {
             "CurrentPrice": round(current_price, 2),
@@ -167,6 +57,36 @@ class RiskEngine:
             "Target3": target3,
             "RR": rr,
             "Quantity": qty,
-            "RiskScore": self.risk_score(entry, stoploss),
-            "RewardScore": self.reward_score(entry, target2)
+            "RiskScore": self._risk_score(entry, stoploss),
+            "RewardScore": self._reward_score(entry, target2),
         }
+
+    def _quantity(self, capital: float, entry: float, sl: float) -> int:
+        if capital <= 0:
+            return 0
+        risk_amount = capital * self.risk_percent / 100
+        risk_per_share = abs(entry - sl)
+        if risk_per_share <= 0:
+            return 0
+        qty = math.floor(risk_amount / risk_per_share)
+        return max(qty, 0)
+
+    def _risk_score(self, entry: float, sl: float) -> int:
+        risk = abs(entry - sl)
+        if risk <= 1:
+            return 100
+        if risk <= 2:
+            return 80
+        if risk <= 3:
+            return 60
+        return 40
+
+    def _reward_score(self, entry: float, target: float) -> int:
+        reward = abs(target - entry)
+        if reward >= 6:
+            return 100
+        if reward >= 4:
+            return 80
+        if reward >= 2:
+            return 60
+        return 40
