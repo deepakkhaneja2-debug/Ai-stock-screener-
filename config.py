@@ -1,22 +1,17 @@
 # ============================================
-# AI STOCK SCANNER V1.4
-# CONFIGURATION FILE
+# AI STOCK SCANNER V1.4 – TRADING LOGIC UPGRADE
 # ============================================
 
 # Scanner Mode
 SCANNER_MODE = "BOTH"        # CASH / FNO / BOTH
-
-# Trading Style
 TRADING_STYLE = "SWING"      # SWING / POSITION
-
-# Accuracy Mode
 ACCURACY_MODE = "BALANCED"   # AGGRESSIVE / BALANCED / CONSERVATIVE
 
 # Timeframes
 PRIMARY_TIMEFRAME = "1d"
 CONFIRMATION_TIMEFRAME = "4h"
 
-# Scanner Results
+# Results
 TOP_BUY_RESULTS = 10
 TOP_SELL_RESULTS = 10
 
@@ -48,7 +43,7 @@ MACD_SIGNAL = 9
 # Watchlist
 WATCHLIST_ONLY = False
 
-# Signal Score Threshold
+# Signal Thresholds
 BUY_SCORE = 60
 SELL_SCORE = 60
 
@@ -62,3 +57,23 @@ CONFIDENCE_WEIGHT_TREND = 0.25
 CONFIDENCE_WEIGHT_PATTERN = 0.20
 CONFIDENCE_WEIGHT_VOLUME = 0.10
 CONFIDENCE_WEIGHT_ATR = 0.05
+
+# ===== NEW: TRADING LOGIC SETTINGS =====
+
+# Entry
+ENTRY_ATR_BUFFER = 0.25          # Price above close to enter
+ENTRY_CONFIRMATION_CANDLES = 2   # Wait for confirmation
+
+# Stop Loss
+STOP_ATR_MULTIPLIER = 1.5        # Initial stop
+TRAILING_STOP_ATR = 2.0          # Trailing stop
+BREAK_EVEN_AT_TARGET1 = True     # Move to BE after T1 hit
+
+# Targets
+TARGET1_R = 1.5                  # Risk:Reward 1.5
+TARGET2_R = 2.5                  # Risk:Reward 2.5
+TARGET3_R = 4.0                  # Risk:Reward 4.0
+
+# Backtest
+BACKTEST_LOOKAHEAD = 30          # Max holding days
+MIN_TRADES_FOR_RANKING = 5       # Minimum trades for ranking
