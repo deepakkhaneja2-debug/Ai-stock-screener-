@@ -13,6 +13,7 @@ class BacktestAnalyzer:
         self.min_trades_for_ranking = 5
 
     def analyze(self, report: Dict[str, Any]) -> Dict[str, Any]:
+        """Analyze a backtest report and return comprehensive metrics."""
         if not isinstance(report, dict):
             return self._empty_analysis()
 
@@ -20,7 +21,6 @@ class BacktestAnalyzer:
         if not trades or not isinstance(trades, list):
             return self._empty_analysis()
 
-        # All trades in the report are already closed by backtest_engine
         total_trades = len(trades)
 
         if total_trades == 0:
@@ -77,7 +77,6 @@ class BacktestAnalyzer:
                 current_wins = 0
                 max_consecutive_losses = max(max_consecutive_losses, current_losses)
             elif status == "BREAK_EVEN":
-                # Break-even resets both counters
                 current_wins = 0
                 current_losses = 0
 
@@ -175,6 +174,7 @@ class BacktestAnalyzer:
         }
 
     def _calculate_monthly_pnl(self, trades: List[Dict]) -> Dict[str, float]:
+        """Calculate monthly P&L from trade history."""
         monthly = {}
         for t in trades:
             exit_date = t.get("ExitDate")
@@ -195,6 +195,7 @@ class BacktestAnalyzer:
         return monthly
 
     def _calculate_equity_curve(self, trades: List[Dict]) -> List[Dict]:
+        """Calculate equity curve from trade history."""
         if not trades:
             return []
 
@@ -228,6 +229,7 @@ class BacktestAnalyzer:
         return curve
 
     def _calculate_drawdown_curve(self, trades: List[Dict]) -> List[Dict]:
+        """Calculate drawdown curve from trade history."""
         if not trades:
             return []
 
@@ -274,6 +276,7 @@ class BacktestAnalyzer:
         wins: int,
         losses: int
     ) -> int:
+        """Calculate AI Score (0-100) based on multiple performance metrics."""
         if total_trades == 0:
             return 0
 
@@ -336,6 +339,7 @@ class BacktestAnalyzer:
         return max(0, min(100, int(round(score))))
 
     def _empty_analysis(self) -> Dict[str, Any]:
+        """Return empty analysis dictionary."""
         return {
             "Total Trades": 0,
             "Closed Trades": 0,
