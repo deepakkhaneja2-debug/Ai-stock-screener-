@@ -66,6 +66,10 @@ class AlertEngine:
         logger.info(f"WhatsApp would send: {message}")
         return True
 
+    def email_alert(self, message: str) -> bool:
+        logger.info(f"Email would send: {message}")
+        return True
+
     def process(self, signal: Union[str, None], symbol: str, price: Optional[float] = None) -> bool:
         self.notify(signal, symbol, price)
 
@@ -75,6 +79,7 @@ class AlertEngine:
         message = f"{signal_str} | {symbol}" + (f" | ₹{price}" if price is not None else "")
         self.telegram_alert(message)
         self.whatsapp_alert(message)
+        self.email_alert(message)
         logger.info(f"Processed alert: {message}")
         return True
 
