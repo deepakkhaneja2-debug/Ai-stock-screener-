@@ -4,116 +4,46 @@ from datetime import datetime
 
 
 class TradeLogger:
+    """Logs trades to a CSV file."""
 
-    def __init__(self, file_name="trade_history.csv"):
+    def __init__(self, file_name: str = "trade_history.csv"):
         self.file_name = file_name
-
         if not os.path.exists(self.file_name):
-
             df = pd.DataFrame(columns=[
-                "Date",
-                "Time",
-                "Symbol",
-                "Signal",
-                "Entry",
-                "Exit",
-                "StopLoss",
-                "Target",
-                "Quantity",
-                "PnL",
-                "PnLPercent",
-                "Reason",
-                "Confidence",
-                "EMA",
-                "MACD",
-                "RSI",
-                "Pattern",
-                "TrendScore"
+                "Date", "Time", "Symbol", "Signal", "Entry", "Exit",
+                "StopLoss", "Target", "Quantity", "PnL", "PnLPercent",
+                "Reason", "Confidence", "EMA", "MACD", "RSI", "Pattern", "TrendScore"
             ])
-
             df.to_csv(self.file_name, index=False)
 
-    # =====================================
-    # SAVE TRADE
-    # =====================================
-
-    def save_trade(
-            self,
-            symbol,
-            signal,
-            entry,
-            exit_price,
-            sl,
-            target,
-            qty,
-            pnl,
-            pnl_percent,
-            reason,
-            confidence,
-            ema,
-            macd,
-            rsi,
-            pattern,
-            trend):
-
-        df = pd.read_csv(self.file_name)
+    def save_trade(self, symbol: str, signal: str, entry: float, exit_price: float,
+                   sl: float, target: float, qty: int, pnl: float, pnl_percent: float,
+                   reason: str, confidence: float, ema: float, macd: float, rsi: float,
+                   pattern: int, trend: int) -> None:
+        try:
+            df = pd.read_csv(self.file_name)
+        except Exception:
+            df = pd.DataFrame(columns=[
+                "Date", "Time", "Symbol", "Signal", "Entry", "Exit",
+                "StopLoss", "Target", "Quantity", "PnL", "PnLPercent",
+                "Reason", "Confidence", "EMA", "MACD", "RSI", "Pattern", "TrendScore"
+            ])
 
         now = datetime.now()
-
-        df.loc[len(df)] = [
-
+        new_row = pd.DataFrame([[
             now.strftime("%Y-%m-%d"),
-
             now.strftime("%H:%M:%S"),
+            symbol, signal, entry, exit_price, sl, target, qty, pnl, pnl_percent,
+            reason, confidence, ema, macd, rsi, pattern, trend
+        ]], columns=df.columns)
 
-            symbol,
-
-            signal,
-
-            entry,
-
-            exit_price,
-
-            sl,
-
-            target,
-
-            qty,
-
-            pnl,
-
-            pnl_percent,
-
-            reason,
-
-            confidence,
-
-            ema,
-
-            macd,
-
-            rsi,
-
-            pattern,
-
-            trend
-
-        ]
-
+        df = pd.concat([df, new_row], ignore_index=True)
         df.to_csv(self.file_name, index=False)
 
-    # =====================================
-    # LOAD HISTORY
-    # =====================================
-
-    def history(self):
-
+    def history(self) -> pd.DataFrame:
+        if not os.path.exists(self.file_name):
+            return pd.DataFrame()
         return pd.read_csv(self.file_name)
 
-    # =====================================
-    # TOTAL TRADES
-    # =====================================
-
-    def total_trades(self):
-
+    def total_trades(self) -> int:
         return len(self.history())
