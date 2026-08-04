@@ -258,8 +258,8 @@ class BacktestEngine:
 
     def _summary(self, trades: list) -> dict:
         """Generate comprehensive backtest summary."""
+        # Always return a valid dictionary with 'Trades' key
         if not trades:
-            logger.warning("No trades found in backtest")
             return self._empty_summary()
 
         # Basic stats
@@ -267,8 +267,6 @@ class BacktestEngine:
         losses = sum(1 for t in trades if t["Status"] == "LOSS")
         break_even = sum(1 for t in trades if t["Status"] == "BREAK_EVEN")
         closed = wins + losses + break_even
-
-        logger.info(f"Backtest summary: {len(trades)} total trades, {wins} wins, {losses} losses, {break_even} break-even")
 
         # Win rate
         win_rate = round((wins / closed) * 100, 2) if closed > 0 else 0
@@ -338,7 +336,7 @@ class BacktestEngine:
             "Target2 Wins": target2_wins,
             "Target3 Wins": target3_wins,
             "Data Quality": data_quality,
-            "Trades": trades
+            "Trades": trades   # <-- Ensure 'Trades' key is always present
         }
 
     def _empty_summary(self) -> dict:
