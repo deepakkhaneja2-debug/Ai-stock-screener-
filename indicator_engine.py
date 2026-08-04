@@ -265,7 +265,7 @@ class IndicatorEngine:
         data["TrendScore"] = self.trend_score(data)
 
         # Ensure no NaN values remain after indicator calculations
-        data = data.fillna(method="bfill").fillna(method="ffill")
+        data = data = data.bfill().ffill()
 
         score = self.final_score(data)
 
