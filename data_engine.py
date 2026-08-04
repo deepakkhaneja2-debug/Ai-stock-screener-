@@ -1,6 +1,6 @@
 import time
 import logging
-from typing import List, Dict
+from typing import List, Dict, Optional
 
 import pandas as pd
 import yfinance as yf
@@ -69,7 +69,7 @@ class DataEngine:
         interval: str = "1d",
         period: str = "6mo"
     ) -> Dict[str, pd.DataFrame]:
-        """Download multiple stocks sequentially (no threading to avoid API issues)."""
+        """Download multiple stocks sequentially."""
         result = {}
         for symbol in symbols:
             data = self.download_stock(symbol, interval, period)
@@ -115,63 +115,44 @@ class DataEngine:
         ]
         return data
 
+    def get_market_index(self) -> Dict[str, pd.DataFrame]:
+        """Fetch market index data."""
+        market_data = {}
+        if USE_NIFTY_FILTER:
+            nifty = self.download_stock("^NSEI")
+            if self.validate_data(nifty):
+                market_data["NIFTY"] = nifty
+        if USE_BANKNIFTY_FILTER:
+            banknifty = self.download_stock("^NSEBANK")
+            if self.validate_data(banknifty):
+                market_data["BANKNIFTY"] = banknifty
+        return market_data
+
     def load_symbols(self) -> List[str]:
-        """Return list of symbols to scan based on config."""
+        """
+        Return 39 NSE stocks for scanning.
+        When SCANNER_MODE == "BOTH", returns the full 39-stock list.
+        """
+        nifty_39 = [
+            "RELIANCE.NS", "TCS.NS", "HDFCBANK.NS", "INFY.NS", "ICICIBANK.NS",
+            "HINDUNILVR.NS", "ITC.NS", "BHARTIARTL.NS", "KOTAKBANK.NS", "LT.NS",
+            "SBIN.NS", "ASIANPAINT.NS", "AXISBANK.NS", "MARUTI.NS", "SUNPHARMA.NS",
+            "TITAN.NS", "ULTRACEMCO.NS", "WIPRO.NS", "HCLTECH.NS", "BAJFINANCE.NS",
+            "NESTLEIND.NS", "TATAMOTORS.NS", "JSWSTEEL.NS", "TATASTEEL.NS", "TECHM.NS",
+            "ONGC.NS", "POWERGRID.NS", "NTPC.NS", "COALINDIA.NS", "IOC.NS",
+            "BPCL.NS", "GAIL.NS", "ADANIPORTS.NS", "DIVISLAB.NS", "DRREDDY.NS",
+            "CIPLA.NS", "BRITANNIA.NS", "HINDALCO.NS", "EICHERMOT.NS"
+        ]
+
         if WATCHLIST_ONLY:
-            return ["RELIANCE.NS", "TCS.NS", "INFY.NS", "HDFCBANK.NS", "ICICIBANK.NS"]
+            return nifty_39[:5]
 
         if SCANNER_MODE == "CASH":
-            return [
-                "RELIANCE.NS", "TCS.NS", "INFY.NS", "HDFCBANK.NS",
-                "ICICIBANK.NS", "SBIN.NS", "LT.NS", "AXISBANK.NS", "TATASTEEL.NS"
-            ]
+            return nifty_39[:15]
         elif SCANNER_MODE == "FNO":
-            return [
-    "RELIANCE.NS",
-    "TCS.NS",
-    "INFY.NS",
-    "HDFCBANK.NS",
-    "ICICIBANK.NS",
-    "SBIN.NS",
-    "LT.NS",
-    "ITC.NS",
-    "BHARTIARTL.NS",
-    "AXISBANK.NS",
-    "KOTAKBANK.NS",
-    "BAJFINANCE.NS",
-    "BAJAJFINSV.NS",
-    "MARUTI.NS",
-    "TITAN.NS",
-    "SUNPHARMA.NS",
-    "ASIANPAINT.NS",
-    "ULTRACEMCO.NS",
-    "NTPC.NS",
-    "POWERGRID.NS",
-    "NESTLEIND.NS",
-    "INDUSINDBK.NS",
-    "WIPRO.NS",
-    "TATAMOTORS.NS",
-    "HINDALCO.NS",
-    "ONGC.NS",
-    "COALINDIA.NS",
-    "ADANIPORTS.NS",
-    "ADANIENT.NS",
-    "GRASIM.NS",
-    "EICHERMOT.NS",
-    "JSWSTEEL.NS",
-    "BPCL.NS",
-    "BRITANNIA.NS",
-    "CIPLA.NS",
-    "DRREDDY.NS",
-    "HEROMOTOCO.NS",
-    "HINDUNILVR.NS",
-    "TECHM.NS"
-]
-        else:
-            return [
-                "RELIANCE.NS", "TCS.NS", "INFY.NS", "HDFCBANK.NS",
-                "ICICIBANK.NS", "SBIN.NS", "LT.NS", "AXISBANK.NS", "TATASTEEL.NS"
-            ]
+            return nifty_39[15:30]
+        else:  # BOTH
+            return nifty_39
 
     def scan_ready_data(self) -> Dict[str, pd.DataFrame]:
         """Fetch and validate data for all symbols in the scan list."""
