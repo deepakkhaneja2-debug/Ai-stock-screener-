@@ -1,5 +1,5 @@
 # ============================================
-# AI STOCK SCANNER V1.1
+# AI STOCK SCANNER V1.3
 # CONFIGURATION FILE
 # ============================================
 
@@ -25,7 +25,7 @@ RISK_PER_TRADE = 1.0         # Percentage
 DEFAULT_RR = 3.0             # Risk : Reward
 
 # Capital
-DEFAULT_CAPITAL = 100000
+STARTING_CAPITAL = 100000
 
 # Alerts
 ENABLE_SOUND_ALERT = True
@@ -48,15 +48,17 @@ MACD_SIGNAL = 9
 # Watchlist
 WATCHLIST_ONLY = False
 
-# ===========================
-# Capital Settings
-# ===========================
-
-STARTING_CAPITAL = 100000
-
-# ===========================
-# Signal Score Threshold
-# ===========================
-
+# Signal Score Threshold (for compatibility with signal_engine if still used)
 BUY_SCORE = 60
 SELL_SCORE = 60
+
+# Strategy Engine Thresholds
+STRATEGY_BUY_THRESHOLD = 60
+STRATEGY_SELL_THRESHOLD = 60
+
+# Confidence Engine Weights (sum = 1.0)
+CONFIDENCE_WEIGHT_STRATEGY = 0.40
+CONFIDENCE_WEIGHT_TREND = 0.25
+CONFIDENCE_WEIGHT_PATTERN = 0.20
+CONFIDENCE_WEIGHT_VOLUME = 0.10
+CONFIDENCE_WEIGHT_ATR = 0.05
