@@ -1,10 +1,15 @@
 # ============================================
-# AI STOCK SCANNER V1.4 – TRADING LOGIC UPGRADE
+# AI STOCK SCANNER V1.4
+# CONFIGURATION FILE
 # ============================================
 
 # Scanner Mode
 SCANNER_MODE = "BOTH"        # CASH / FNO / BOTH
+
+# Trading Style
 TRADING_STYLE = "SWING"      # SWING / POSITION
+
+# Accuracy Mode
 ACCURACY_MODE = "BALANCED"   # AGGRESSIVE / BALANCED / CONSERVATIVE
 
 # Timeframes
@@ -48,8 +53,8 @@ BUY_SCORE = 60
 SELL_SCORE = 60
 
 # Strategy Engine Thresholds
-STRATEGY_BUY_THRESHOLD = 60
-STRATEGY_SELL_THRESHOLD = 60
+STRATEGY_BUY_THRESHOLD = 65
+STRATEGY_SELL_THRESHOLD = 65
 
 # Confidence Engine Weights
 CONFIDENCE_WEIGHT_STRATEGY = 0.40
@@ -58,22 +63,15 @@ CONFIDENCE_WEIGHT_PATTERN = 0.20
 CONFIDENCE_WEIGHT_VOLUME = 0.10
 CONFIDENCE_WEIGHT_ATR = 0.05
 
-# ===== NEW: TRADING LOGIC SETTINGS =====
+# Backtest Settings
+BACKTEST_LOOKAHEAD = 30
+MIN_TRADES_FOR_RANKING = 5
 
-# Entry
-ENTRY_ATR_BUFFER = 0.25          # Price above close to enter
-ENTRY_CONFIRMATION_CANDLES = 2   # Wait for confirmation
-
-# Stop Loss
-STOP_ATR_MULTIPLIER = 1.5        # Initial stop
-TRAILING_STOP_ATR = 2.0          # Trailing stop
-BREAK_EVEN_AT_TARGET1 = True     # Move to BE after T1 hit
-
-# Targets
-TARGET1_R = 1.5                  # Risk:Reward 1.5
-TARGET2_R = 2.5                  # Risk:Reward 2.5
-TARGET3_R = 4.0                  # Risk:Reward 4.0
-
-# Backtest
-BACKTEST_LOOKAHEAD = 30          # Max holding days
-MIN_TRADES_FOR_RANKING = 5       # Minimum trades for ranking
+# Trading Settings
+ENTRY_ATR_BUFFER = 0.25
+STOP_ATR_MULTIPLIER = 1.5
+TRAILING_STOP_ATR = 2.0
+BREAK_EVEN_AT_TARGET1 = True
+TARGET1_R = 1.5
+TARGET2_R = 2.5
+TARGET3_R = 4.0
