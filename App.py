@@ -398,6 +398,9 @@ if __name__ == "__main__":
 
     st.subheader("🏆 Stock Ranking")
 
+    if overall_df.empty or "PnL" not in     overall_df.columns:
+    st.info("No backtest results available.")
+else:
     ranking_df = overall_df.sort_values(
         by="PnL",
         ascending=False
