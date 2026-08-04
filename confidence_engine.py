@@ -1,7 +1,7 @@
 import logging
 import pandas as pd
 
-from config import *  # <-- YEH IMPORT MISSING THA. Isse fix kar diya.
+from config import *   # <-- यह import missing था, अब fix है
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -21,7 +21,7 @@ class ConfidenceEngine:
         """Return a quality score for ATR."""
         if atr <= 0:
             return 0.0
-        return min(100, atr * 10)  # Simplified quality metric
+        return min(100, atr * 10)   # सरल गुणवत्ता मीट्रिक
 
     def calculate(
         self,
@@ -31,7 +31,7 @@ class ConfidenceEngine:
         volume_spike: bool,
         atr: float = 0.0
     ) -> float:
-        """Return a confidence score between 0 and 100."""
+        """0–100 के बीच confidence score लौटाए।"""
         # Clamp inputs
         strategy_score = max(0, min(100, strategy_score))
         trend_score = max(0, min(100, trend_score))
