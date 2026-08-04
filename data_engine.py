@@ -127,9 +127,46 @@ class DataEngine:
             ]
         elif SCANNER_MODE == "FNO":
             return [
-                "RELIANCE.NS", "SBIN.NS", "LT.NS", "AXISBANK.NS",
-                "TATASTEEL.NS", "ICICIBANK.NS", "HDFCBANK.NS"
-            ]
+    "RELIANCE.NS",
+    "TCS.NS",
+    "INFY.NS",
+    "HDFCBANK.NS",
+    "ICICIBANK.NS",
+    "SBIN.NS",
+    "LT.NS",
+    "ITC.NS",
+    "BHARTIARTL.NS",
+    "AXISBANK.NS",
+    "KOTAKBANK.NS",
+    "BAJFINANCE.NS",
+    "BAJAJFINSV.NS",
+    "MARUTI.NS",
+    "TITAN.NS",
+    "SUNPHARMA.NS",
+    "ASIANPAINT.NS",
+    "ULTRACEMCO.NS",
+    "NTPC.NS",
+    "POWERGRID.NS",
+    "NESTLEIND.NS",
+    "INDUSINDBK.NS",
+    "WIPRO.NS",
+    "TATAMOTORS.NS",
+    "HINDALCO.NS",
+    "ONGC.NS",
+    "COALINDIA.NS",
+    "ADANIPORTS.NS",
+    "ADANIENT.NS",
+    "GRASIM.NS",
+    "EICHERMOT.NS",
+    "JSWSTEEL.NS",
+    "BPCL.NS",
+    "BRITANNIA.NS",
+    "CIPLA.NS",
+    "DRREDDY.NS",
+    "HEROMOTOCO.NS",
+    "HINDUNILVR.NS",
+    "TECHM.NS"
+]
         else:
             return [
                 "RELIANCE.NS", "TCS.NS", "INFY.NS", "HDFCBANK.NS",
