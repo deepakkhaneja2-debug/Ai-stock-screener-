@@ -1,6 +1,5 @@
 import logging
 import pandas as pd
-import numpy as np
 from typing import Dict, List, Union
 
 logger = logging.getLogger(__name__)
@@ -64,7 +63,6 @@ class StrategyEngine:
         if ema20 == 0 or ema50 == 0:
             return 0
             
-        # Require price confirmation
         if ema20 > ema50 and close > ema20:
             if self._confirm_signal(data, "EMA20", "bullish"):
                 return 20
@@ -80,7 +78,6 @@ class StrategyEngine:
         signal = self._safe_get_last(data, "MACD_SIGNAL")
         
         if macd > signal:
-            # Require histogram positive for confirmation
             hist = self._safe_get_last(data, "MACD_HIST", 0)
             if hist > 0 and self._confirm_signal(data, "MACD", "bullish"):
                 return 20
@@ -97,7 +94,6 @@ class StrategyEngine:
         if rsi == 0:
             return 0
             
-        # Narrower RSI range for better accuracy
         if 55 <= rsi <= 65:   # Strong bullish zone
             return 20
         elif 35 <= rsi <= 45:  # Strong bearish zone
@@ -113,7 +109,6 @@ class StrategyEngine:
         close = self._safe_get_last(data, "Close")
         vwap = self._safe_get_last(data, "VWAP")
         
-        # Volume spike with price confirmation
         if close > vwap:
             return 20
         elif close < vwap:
@@ -140,7 +135,6 @@ class StrategyEngine:
         up = self._safe_get_bool(data, "BREAKOUT_UP")
         down = self._safe_get_bool(data, "BREAKOUT_DOWN")
         
-        # Require volume confirmation for breakout
         vol_spike = self._safe_get_bool(data, "VOL_SPIKE")
         
         if up and vol_spike:
@@ -187,7 +181,6 @@ class StrategyEngine:
             norm_score = ((total + max_total) / (2 * max_total)) * 100
             norm_score = max(0, min(100, round(norm_score)))
 
-            # Stricter threshold for better accuracy
             if norm_score >= self.buy_threshold:
                 signal = "BUY"
             elif norm_score <= (100 - self.sell_threshold):
