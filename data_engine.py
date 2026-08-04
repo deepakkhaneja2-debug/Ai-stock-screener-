@@ -1,358 +1,145 @@
 import time
 import logging
-from typing import List
+from typing import List, Dict
 
 import pandas as pd
 import yfinance as yf
 
 from config import *
 
-
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s | %(levelname)s | %(message)s"
-)
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
 
 class DataEngine:
+    """Handles data fetching and validation from Yahoo Finance."""
 
     def __init__(self):
-
         self.retry_count = 3
         self.retry_delay = 2
-
-    # =========================================
-    # DOWNLOAD STOCK DATA
-    # =========================================
+        self.auto_adjust = True
+        self.min_data_rows = 100
+        self.required_columns = ["Open", "High", "Low", "Close", "Volume"]
 
     def download_stock(
         self,
-        symbol,
-        interval=None,
-        period="6mo"
-    ):
-
-        if interval is None:
-            interval = PRIMARY_TIMEFRAME
-
-        for attempt in range(1, self.retry_count + 1):
-
+        symbol: str,
+        interval: str = "1d",
+        period: str = "6mo"
+    ) -> pd.DataFrame:
+        """Download a single stock's data with retries."""
+        for attempt in range(self.retry_count):
             try:
-
                 data = yf.download(
                     symbol,
                     interval=interval,
                     period=period,
                     progress=False,
-                    auto_adjust=False,
+                    auto_adjust=self.auto_adjust,
                     threads=False
                 )
-
                 if data is None or data.empty:
-                    raise ValueError("No market data received")
+                    raise ValueError("No data received")
 
-                # Flatten yfinance MultiIndex
-                if isinstance(
-                    data.columns,
-                    pd.MultiIndex
-                ):
+                # Flatten MultiIndex columns if present
+                if isinstance(data.columns, pd.MultiIndex):
+                    data.columns = data.columns.get_level_values(0)
 
-                    data.columns = (
-                        data.columns
-                        .get_level_values(0)
-                    )
-
-                required_columns = [
-                    "Open",
-                    "High",
-                    "Low",
-                    "Close",
-                    "Volume"
-                ]
-
-                missing = [
-                    col
-                    for col in required_columns
-                    if col not in data.columns
-                ]
-
-                if missing:
-
-                    raise ValueError(
-                        f"Missing columns: {missing}"
-                    )
+                # Validate required columns
+                if not all(col in data.columns for col in self.required_columns):
+                    raise ValueError("Missing required columns")
 
                 data = self.clean_data(data)
-
                 if data.empty:
-                    raise ValueError(
-                        "Data empty after cleaning"
-                    )
+                    raise ValueError("Data empty after cleaning")
 
                 return data
 
             except Exception as e:
-
-                logging.warning(
-                    f"{symbol} | "
-                    f"{interval} | "
-                    f"Attempt {attempt}/"
-                    f"{self.retry_count} | {e}"
-                )
-
-                if attempt < self.retry_count:
+                logger.warning(f"{symbol} attempt {attempt+1}/{self.retry_count}: {e}")
+                if attempt < self.retry_count - 1:
                     time.sleep(self.retry_delay)
 
-        logging.error(
-            f"Failed to download {symbol} "
-            f"({interval})"
-        )
-
+        logger.error(f"Failed to download {symbol}")
         return pd.DataFrame()
-
-    # =========================================
-    # DOWNLOAD MULTIPLE STOCKS
-    # =========================================
 
     def download_multiple(
         self,
         symbols: List[str],
-        interval=None,
-        period="6mo"
-    ):
-
-        if interval is None:
-            interval = PRIMARY_TIMEFRAME
-
+        interval: str = "1d",
+        period: str = "6mo"
+    ) -> Dict[str, pd.DataFrame]:
+        """Download multiple stocks sequentially (no threading to avoid API issues)."""
         result = {}
-
         for symbol in symbols:
-
-            data = self.download_stock(
-                symbol=symbol,
-                interval=interval,
-                period=period
-            )
-
+            data = self.download_stock(symbol, interval, period)
             if self.validate_data(data):
-
                 result[symbol] = data
-
             else:
-
-                logging.warning(
-                    f"{symbol} rejected "
-                    f"after validation"
-                )
-
+                logger.warning(f"{symbol} rejected after validation")
         return result
 
-    # =========================================
-    # VALIDATE DATA
-    # =========================================
-
-    def validate_data(self, data):
-
+    def validate_data(self, data: pd.DataFrame) -> bool:
+        """Check if data meets minimum requirements."""
         if data is None or data.empty:
             return False
-
-        if len(data) < 100:
+        if len(data) < self.min_data_rows:
             return False
-
-        required = [
-            "Open",
-            "High",
-            "Low",
-            "Close",
-            "Volume"
-        ]
-
-        for column in required:
-
-            if column not in data.columns:
-                return False
-
+        if not all(col in data.columns for col in self.required_columns):
+            return False
         return True
 
-    # =========================================
-    # CLEAN DATA
-    # =========================================
-
-    def clean_data(self, data):
-
+    def clean_data(self, data: pd.DataFrame) -> pd.DataFrame:
+        """Clean and prepare data for analysis."""
         if data is None or data.empty:
             return pd.DataFrame()
 
         data = data.copy()
 
         # Remove duplicate timestamps
-        data = data[
-            ~data.index.duplicated(
-                keep="last"
-            )
-        ]
+        data = data[~data.index.duplicated(keep="last")]
 
-        # Numeric conversion
-        numeric_columns = [
-            "Open",
-            "High",
-            "Low",
-            "Close",
-            "Volume"
-        ]
+        # Convert to numeric and drop invalid rows
+        numeric_cols = ["Open", "High", "Low", "Close", "Volume"]
+        for col in numeric_cols:
+            if col in data.columns:
+                data[col] = pd.to_numeric(data[col], errors="coerce")
 
-        for column in numeric_columns:
+        data = data.dropna(subset=numeric_cols)
 
-            if column in data.columns:
-
-                data[column] = pd.to_numeric(
-                    data[column],
-                    errors="coerce"
-                )
-
-        # Remove invalid rows
-        data.dropna(
-            subset=numeric_columns,
-            inplace=True
-        )
-
-        # Remove zero/negative prices
+        # Remove non‑positive prices
         data = data[
             (data["Close"] > 0) &
             (data["High"] > 0) &
             (data["Low"] > 0)
         ]
-
         return data
 
-    # =========================================
-    # MULTI TIMEFRAME DATA
-    # =========================================
-
-    def get_multi_timeframe_data(
-        self,
-        symbol
-    ):
-
-        primary = self.download_stock(
-            symbol=symbol,
-            interval=PRIMARY_TIMEFRAME,
-            period="6mo"
-        )
-
-        confirmation = self.download_stock(
-            symbol=symbol,
-            interval=CONFIRMATION_TIMEFRAME,
-            period="60d"
-        )
-
-        return {
-
-            "primary": primary,
-
-            "confirmation": confirmation
-        }
-
-    # =========================================
-    # MARKET INDEX DATA
-    # =========================================
-
-    def get_market_index(self):
-
-        market_data = {}
-
-        if USE_NIFTY_FILTER:
-
-            nifty = self.download_stock(
-                symbol="^NSEI",
-                interval=PRIMARY_TIMEFRAME,
-                period="6mo"
-            )
-
-            if self.validate_data(nifty):
-                market_data["NIFTY"] = nifty
-
-        if USE_BANKNIFTY_FILTER:
-
-            banknifty = self.download_stock(
-                symbol="^NSEBANK",
-                interval=PRIMARY_TIMEFRAME,
-                period="6mo"
-            )
-
-            if self.validate_data(banknifty):
-                market_data["BANKNIFTY"] = banknifty
-
-        return market_data
-
-    # =========================================
-    # LOAD SYMBOLS
-    # =========================================
-
-    def load_symbols(self):
-
+    def load_symbols(self) -> List[str]:
+        """Return list of symbols to scan based on config."""
         if WATCHLIST_ONLY:
-
-            return [
-                "RELIANCE.NS",
-                "TCS.NS",
-                "INFY.NS",
-                "HDFCBANK.NS",
-                "ICICIBANK.NS"
-            ]
+            return ["RELIANCE.NS", "TCS.NS", "INFY.NS", "HDFCBANK.NS", "ICICIBANK.NS"]
 
         if SCANNER_MODE == "CASH":
-
             return [
-                "RELIANCE.NS",
-                "TCS.NS",
-                "INFY.NS",
-                "HDFCBANK.NS",
-                "ICICIBANK.NS",
-                "SBIN.NS",
-                "LT.NS",
-                "AXISBANK.NS",
-                "TATASTEEL.NS"
+                "RELIANCE.NS", "TCS.NS", "INFY.NS", "HDFCBANK.NS",
+                "ICICIBANK.NS", "SBIN.NS", "LT.NS", "AXISBANK.NS", "TATASTEEL.NS"
             ]
-
         elif SCANNER_MODE == "FNO":
-
             return [
-                "RELIANCE.NS",
-                "SBIN.NS",
-                "LT.NS",
-                "AXISBANK.NS",
-                "TATASTEEL.NS",
-                "ICICIBANK.NS",
-                "HDFCBANK.NS"
+                "RELIANCE.NS", "SBIN.NS", "LT.NS", "AXISBANK.NS",
+                "TATASTEEL.NS", "ICICIBANK.NS", "HDFCBANK.NS"
             ]
-
         else:
-
             return [
-                "RELIANCE.NS",
-                "TCS.NS",
-                "INFY.NS",
-                "HDFCBANK.NS",
-                "ICICIBANK.NS",
-                "SBIN.NS",
-                "LT.NS",
-                "AXISBANK.NS",
-                "TATASTEEL.NS"
+                "RELIANCE.NS", "TCS.NS", "INFY.NS", "HDFCBANK.NS",
+                "ICICIBANK.NS", "SBIN.NS", "LT.NS", "AXISBANK.NS", "TATASTEEL.NS"
             ]
 
-    # =========================================
-    # SCANNER READY DATA
-    # =========================================
-
-    def scan_ready_data(self):
-
+    def scan_ready_data(self) -> Dict[str, pd.DataFrame]:
+        """Fetch and validate data for all symbols in the scan list."""
         symbols = self.load_symbols()
-
-        logging.info(
-            f"Scanning {len(symbols)} symbols"
-        )
-
+        logger.info(f"Scanning {len(symbols)} symbols")
         return self.download_multiple(
             symbols=symbols,
             interval=PRIMARY_TIMEFRAME,
