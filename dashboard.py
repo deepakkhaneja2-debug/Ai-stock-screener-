@@ -14,6 +14,9 @@ class DashboardEngine:
 
         df = data.copy()
 
+        if "Signal" not in df.columns:
+            return pd.DataFrame()
+
         df = df[df["Signal"] == "BUY"]
 
         df = df.sort_values(
@@ -31,6 +34,9 @@ class DashboardEngine:
 
         df = data.copy()
 
+        if "Signal" not in df.columns:
+            return pd.DataFrame()
+
         df = df[df["Signal"] == "SELL"]
 
         df = df.sort_values(
@@ -45,6 +51,9 @@ class DashboardEngine:
     # ==============================
 
     def watchlist(self, data):
+
+        if "Signal" not in data.columns:
+            return pd.DataFrame()
 
         return data[data["Signal"] == "WATCH"]
 
@@ -65,6 +74,9 @@ class DashboardEngine:
 
     def search(self, data, symbol):
 
+        if "Symbol" not in data.columns:
+            return pd.DataFrame()
+
         return data[
             data["Symbol"].str.contains(
                 symbol,
@@ -77,6 +89,9 @@ class DashboardEngine:
     # ==============================
 
     def summary(self, data):
+
+        if "Signal" not in data.columns:
+            return {"BUY": 0, "SELL": 0, "WATCH": 0}
 
         return {
 
