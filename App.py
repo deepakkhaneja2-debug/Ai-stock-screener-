@@ -37,21 +37,27 @@ class StockScanner:
         self.results = []
 
     def load_market(self):
+        """Load market data for all symbols."""
         print("Loading Market Data...")
         self.market_data = self.data_engine.scan_ready_data()
-        st.write(self.market_data.keys())
-        st.write(len(self.market_data))
-        print(f"Loaded {len(self.market_data)} Symbols")
+        st.write(f"Loaded {len(self.market_data)} Symbols")
+        return self.market_data
 
-    def process_symbol(self, symbol, data):
+    def process_symbol(self, symbol: str, data: pd.DataFrame) -> None:
+        """Process a single symbol through the entire pipeline."""
         if data.empty:
             return
 
+        # Indicators
         data, indicator_score = self.indicator_engine.process(data)
+
+        # Patterns
         data, pattern_score = self.pattern_engine.process(data)
 
+        # Strategy
         strategy_result = self.strategy_engine.evaluate(data)
 
+        # Confidence
         confidence = self.confidence_engine.calculate(
             strategy_score=strategy_result["strategy_score"],
             trend_score=data["TrendScore"].iloc[-1] if "TrendScore" in data.columns else 0,
@@ -60,6 +66,7 @@ class StockScanner:
             atr=data["ATR"].iloc[-1] if "ATR" in data.columns else 0
         )
 
+        # Risk
         trade = self.risk_engine.trade_plan(data, self.capital)
         if not trade:
             return
@@ -82,19 +89,19 @@ class StockScanner:
         })
 
     def run(self):
+        """Run the complete scanner pipeline."""
         self.load_market()
 
         for symbol, data in self.market_data.items():
             try:
                 self.process_symbol(symbol, data)
-            except Exception:
+            except Exception as e:
                 st.write(f"Error in: {symbol}")
                 st.code(traceback.format_exc())
 
         self.results = pd.DataFrame(self.results)
+        print(f"Results shape: {self.results.shape}")
         print(self.results)
-        print(self.results.columns)
-        print(self.results.shape)
 
         # Backtest
         backtest_results = {}
@@ -106,7 +113,7 @@ class StockScanner:
                 raw_report = self.backtest.run(bt_data)
                 analysis = self.backtest_analyzer.analyze(raw_report)
                 backtest_results[symbol] = analysis
-            except Exception:
+            except Exception as e:
                 st.write(f"Backtest Error: {symbol}")
                 st.code(traceback.format_exc())
 
@@ -114,6 +121,7 @@ class StockScanner:
         return self.results
 
     def send_alerts(self):
+        """Send alerts for BUY and SELL signals."""
         if self.results.empty:
             return
         for _, row in self.results.iterrows():
@@ -126,6 +134,7 @@ class StockScanner:
             )
 
     def save_logs(self):
+        """Save all trades to log."""
         if self.results.empty:
             return
         for _, row in self.results.iterrows():
@@ -148,21 +157,13 @@ class StockScanner:
                 trend=0
             )
 
-    def performance_report(self):
-        print("\n========== PERFORMANCE ==========")
-        print(self.performance.summary())
-        print("\nAverage Profit")
-        print(self.performance.average_profit())
-        print("\nAverage Loss")
-        print(self.performance.average_loss())
-
     def show_dashboard(self):
+        """Display dashboard statistics."""
         if self.results.empty:
             print("No scan results generated.")
             return
         if "Signal" not in self.results.columns:
             print("Signal column missing.")
-            print(self.results.columns.tolist())
             return
         print("\n========== TOP BUY ==========")
         print(self.dashboard.top_buy(self.results))
@@ -171,8 +172,18 @@ class StockScanner:
         print("\n========== SUMMARY ==========")
         print(self.dashboard.summary(self.results))
 
+    def performance_report(self):
+        """Generate performance report."""
+        print("\n========== PERFORMANCE ==========")
+        print(self.performance.summary())
+        print("\nAverage Profit")
+        print(self.performance.average_profit())
+        print("\nAverage Loss")
+        print(self.performance.average_loss())
 
-if __name__ == "__main__":
+
+def main():
+    """Main Streamlit application."""
     st.set_page_config(page_title="AI Stock Scanner V1.4", layout="wide")
     st.title("AI Stock Scanner V1.4")
     st.success("App Running Successfully")
@@ -180,60 +191,43 @@ if __name__ == "__main__":
     scanner = StockScanner()
     results = scanner.run()
 
+    # Display scanner results
     st.subheader("Scanner Results")
     if not results.empty:
         st.dataframe(results, use_container_width=True)
     else:
         st.warning("No signals found.")
 
+    # Overall Backtest Dashboard
     st.subheader("📊 Overall Backtest Dashboard")
-    all_reports = []
-    for symbol, report in scanner.backtest_results.items():
-        if isinstance(report, dict):
-            all_reports.append({
-                "Symbol": symbol,
-                "Trades": report.get("Total Trades", 0),
-                "Wins": report.get("Wins", 0),
-                "Losses": report.get("Losses", 0),
-                "Open": report.get("Open", 0),
-                "Win Rate": report.get("Win Rate", 0),
-                "PnL": report.get("Total PnL", 0),
-                "Profit Factor": report.get("Profit Factor", 0),
-                "Max Drawdown": report.get("Max Drawdown", 0),
-                "Target1": report.get("Target1 Wins", 0),
-                "Target2": report.get("Target2 Wins", 0),
-                "Target3": report.get("Target3 Wins", 0)
-            })
 
-    overall_df = pd.DataFrame(all_reports)
+    # Calculate overall stats
+    overall_stats = scanner.dashboard.overall_stats(scanner.backtest_results)
 
-    if not overall_df.empty:
-        total_trades = overall_df["Trades"].sum()
-        total_wins = overall_df["Wins"].sum()
-        total_losses = overall_df["Losses"].sum()
-        total_open = overall_df["Open"].sum()
-        total_pnl = overall_df["PnL"].sum()
-        closed_trades = total_wins + total_losses
-        overall_win_rate = round((total_wins / closed_trades) * 100, 2) if closed_trades > 0 else 0
-
+    if overall_stats["Total Trades"] > 0:
         col1, col2, col3, col4 = st.columns(4)
-        col1.metric("Total Trades", int(total_trades))
-        col2.metric("Wins", int(total_wins))
-        col3.metric("Losses", int(total_losses))
-        col4.metric("Overall Win Rate", f"{overall_win_rate}%")
+        col1.metric("Total Trades", int(overall_stats["Total Trades"]))
+        col2.metric("Wins", int(overall_stats["Wins"]))
+        col3.metric("Losses", int(overall_stats["Losses"]))
+        col4.metric("Overall Win Rate", f"{overall_stats['Win Rate']}%")
 
         col5, col6, col7 = st.columns(3)
-        col5.metric("Total P&L", round(total_pnl, 2))
-        col6.metric("Open Trades", int(total_open))
-        col7.metric("Best Stock", overall_df.loc[overall_df["PnL"].idxmax(), "Symbol"])
-
-    st.subheader("🏆 Stock Ranking")
-    if overall_df.empty or "PnL" not in overall_df.columns:
-        st.info("No backtest results available.")
+        col5.metric("Total P&L", round(overall_stats["Total PnL"], 2))
+        col6.metric("Profit Factor", round(overall_stats["Profit Factor"], 2))
+        col7.metric("AI Score", int(overall_stats["AI Score"]))
     else:
-        ranking_df = overall_df.sort_values(by="PnL", ascending=False).reset_index(drop=True)
-        st.dataframe(ranking_df, use_container_width=True)
+        st.info("No backtest results available.")
 
+    # Stock Ranking
+    st.subheader("🏆 Stock Ranking")
+    ranking_df = scanner.dashboard.ranking_table(scanner.backtest_results)
+
+    if not ranking_df.empty:
+        st.dataframe(ranking_df, use_container_width=True)
+    else:
+        st.info("No backtest results available.")
+
+    # Backtest Summary
     st.subheader("Backtest Summary")
     for symbol, report in scanner.backtest_results.items():
         st.write(f"### {symbol}")
@@ -242,16 +236,21 @@ if __name__ == "__main__":
                 "Total Trades": report.get("Total Trades", 0),
                 "Wins": report.get("Wins", 0),
                 "Losses": report.get("Losses", 0),
-                "Open": report.get("Open", 0),
+                "BreakEven": report.get("BreakEven", 0),
                 "Win Rate": report.get("Win Rate", 0),
                 "Total PnL": report.get("Total PnL", 0),
                 "Average Profit": report.get("Average Profit", 0),
                 "Average Loss": report.get("Average Loss", 0),
                 "Profit Factor": report.get("Profit Factor", 0),
                 "Max Drawdown": report.get("Max Drawdown", 0),
+                "AI Score": report.get("AI Score", 0),
                 "Target1 Wins": report.get("Target1 Wins", 0),
                 "Target2 Wins": report.get("Target2 Wins", 0),
                 "Target3 Wins": report.get("Target3 Wins", 0)
             })
         else:
             st.warning(f"{symbol}: Backtest report format incorrect.")
+
+
+if __name__ == "__main__":
+    main()
