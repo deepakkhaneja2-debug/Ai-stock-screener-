@@ -54,9 +54,14 @@ class PerformanceAnalyzer:
 
         gross_profit = closed[closed["PnL"] > 0]["PnL"].sum()
         gross_loss = abs(closed[closed["PnL"] < 0]["PnL"].sum())
-        profit_factor = round(gross_profit / gross_loss, 2) if gross_loss > 0 else 0
+        # FIXED: Use float('inf') for profit factor when no losses (mathematically correct)
+        profit_factor = round(gross_profit / gross_loss, 2) if gross_loss > 0 else float('inf')
 
-        expectancy = round((wins/total * avg_profit) + (losses/total * avg_loss), 2) if total > 0 else 0
+        # FIXED: Avoid division by zero in expectancy calculation
+        if total > 0:
+            expectancy = round((wins/total * avg_profit) + (losses/total * avg_loss), 2)
+        else:
+            expectancy = 0.0
 
         return {
             "TotalTrades": total,
@@ -98,7 +103,10 @@ class PerformanceAnalyzer:
         closed = df[df["Exit"] > 0].sort_values("Date")
         if closed.empty:
             return pd.DataFrame()
+        # FIXED: Use .copy() to avoid SettingWithCopyWarning
+        closed = closed.copy()
         closed["Equity"] = closed["PnL"].cumsum()
+        # FIXED: Return Date and Equity columns only
         return closed[["Date", "Equity"]]
 
     def drawdown_curve(self) -> pd.DataFrame:
@@ -109,7 +117,10 @@ class PerformanceAnalyzer:
         closed = df[df["Exit"] > 0].sort_values("Date")
         if closed.empty:
             return pd.DataFrame()
+        # FIXED: Use .copy() to avoid SettingWithCopyWarning
+        closed = closed.copy()
         closed["Equity"] = closed["PnL"].cumsum()
         closed["Peak"] = closed["Equity"].cummax()
         closed["Drawdown"] = closed["Equity"] - closed["Peak"]
+        # FIXED: Return Date and Drawdown columns only
         return closed[["Date", "Drawdown"]]
