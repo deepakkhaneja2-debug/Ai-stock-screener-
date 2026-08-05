@@ -195,7 +195,10 @@ class BacktestEngine:
             if not trade_closed and trade["Status"] == "OPEN":
                 # Close at the last candle's close price
                 last_idx = min(trade["Expiry"] - 1, len(data) - 1)
-                self._close_trade(trade, last_idx, "TIME_EXIT")
+
+trade["ExitPrice"] = float(data.iloc[last_idx]["Close"])
+
+self._close_trade(trade, last_idx, "TIME_EXIT")
 
             # Append closed trade
             if trade["Status"] != "OPEN":
