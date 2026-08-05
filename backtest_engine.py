@@ -223,10 +223,8 @@ class BacktestEngine:
             exit_price = trade["CurrentStop"]
         elif reason == "BREAK_EVEN":
             exit_price = trade["Entry"]
-        else:  # TIME_EXIT or other
-            # Use the close price of the exit candle
-            # Since we don't have the data, use entry price as fallback
-            exit_price = trade["Entry"]
+        else:  # TIME_EXIT
+    exit_price = trade.get("ExitPrice", trade["Entry"])
 
         # Calculate P&L
         pnl = round(exit_price - trade["Entry"], 2)
