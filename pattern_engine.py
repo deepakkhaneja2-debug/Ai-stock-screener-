@@ -143,9 +143,9 @@ class PatternEngine:
             if self.inside_bar(data).iloc[-1]:
                 score += 10
         except Exception as e:
-            logger.warning(f"Error calculating pattern score: {e}")
+            logger.debug(f"Pattern score error: {e}")
 
-        return score
+        return min(score, 100)
 
     # ---------- Process ----------
     def process(self, data: pd.DataFrame):
