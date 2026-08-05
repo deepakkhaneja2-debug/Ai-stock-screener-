@@ -27,10 +27,6 @@ DEFAULT_RR = 3.0             # Risk : Reward
 # Backtest Cost Settings
 SLIPPAGE = 0.001             # 0.1% Slippage
 BROKERAGE_PER_TRADE = 20     # ₹20 per completed trade
-
-# Backtest Cost Settings
-SLIPPAGE = 0.001             # 0.1% Slippage
-BROKERAGE_PER_TRADE = 20     # ₹20 per completed trade
 ENABLE_TRANSACTION_COST = True
 
 # Capital
