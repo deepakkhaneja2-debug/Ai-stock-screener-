@@ -218,6 +218,8 @@ self._close_trade(trade, last_idx, "TIME_EXIT")
             return
 
         # Determine exit price based on reason
+        entry_price = trade["Entry"] * (1 +                                 self.slippage)
+        exit_price = exit_price * (1 - self.slippage)
         if reason == "TARGET3":
             exit_price = trade["Target3"]
         elif reason == "TARGET2":
@@ -232,7 +234,10 @@ self._close_trade(trade, last_idx, "TIME_EXIT")
     exit_price = trade.get("ExitPrice", trade["Entry"])
 
         # Calculate P&L
-        pnl = round(exit_price - trade["Entry"], 2)
+        pnl = round(
+    (exit_price - entry_price) - self.brokerage,
+    2
+)
         pnl_percent = round((pnl / trade["Entry"]) * 100, 2) if trade["Entry"] > 0 else 0
         r_multiple = round(pnl / trade["Risk"], 2) if trade["Risk"] > 0 else 0
 
