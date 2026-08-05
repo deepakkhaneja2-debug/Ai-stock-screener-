@@ -24,6 +24,10 @@ TOP_SELL_RESULTS = 10
 RISK_PER_TRADE = 1.0         # Percentage
 DEFAULT_RR = 3.0             # Risk : Reward
 
+# Backtest Cost Settings
+SLIPPAGE = 0.001             # 0.1% Slippage
+BROKERAGE_PER_TRADE = 20     # ₹20 per completed trade
+
 # Capital
 STARTING_CAPITAL = 100000
 
