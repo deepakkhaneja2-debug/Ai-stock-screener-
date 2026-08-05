@@ -28,6 +28,8 @@ class BacktestEngine:
         self.min_trades_for_ranking = MIN_TRADES_FOR_RANKING
         self.risk_per_trade = 1.0  # % of capital
         self.initial_capital = 100000
+        self.slippage = SLIPPAGE
+        self.brokerage = BROKERAGE_PER_TRADE
 
     def run(self, data: pd.DataFrame) -> dict:
         """Run backtest with full trade management."""
