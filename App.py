@@ -1,24 +1,4 @@
-import streamlit as st
-import pandas as pd
-import traceback
-
-from config import *
-
-from data_engine import DataEngine
-from indicator_engine import IndicatorEngine
-from pattern_engine import PatternEngine
-from strategy_engine import StrategyEngine
-from confidence_engine import ConfidenceEngine
-from risk_engine import RiskEngine
-from alert_engine import AlertEngine
-from dashboard import DashboardEngine
-from trade_logger import TradeLogger
-from performance_analyzer import PerformanceAnalyzer
-from backtest_engine import BacktestEngine
-from backtest_analyzer import BacktestAnalyzer
-
-
-def main():
+ def main():
     """Main Streamlit application."""
 
     st.set_page_config(
