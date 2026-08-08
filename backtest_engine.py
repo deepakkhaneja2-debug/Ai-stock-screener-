@@ -24,11 +24,17 @@ def run(self, data: pd.DataFrame) -> dict:
     data = data.copy()
 
     required = [
-        "Close", "High", "Low",
-        "EMA20", "EMA50",
-        "RSI", "MACD", "MACD_SIGNAL",
-        "ATR"
-    ]
+    "Open",
+    "Close",
+    "High",
+    "Low",
+    "EMA20",
+    "EMA50",
+    "RSI",
+    "MACD",
+    "MACD_SIGNAL",
+    "ATR"
+]
 
     if not all(col in data.columns for col in required):
         logger.warning("Missing required columns for backtest")
