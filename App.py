@@ -2,8 +2,6 @@ import streamlit as st
 import pandas as pd
 import traceback
 
-from config import *
-
 from data_engine import DataEngine
 from indicator_engine import IndicatorEngine
 from pattern_engine import PatternEngine
@@ -17,9 +15,13 @@ from performance_analyzer import PerformanceAnalyzer
 from backtest_engine import BacktestEngine
 from backtest_analyzer import BacktestAnalyzer
 
+try:
+    from config import STARTING_CAPITAL
+except ImportError:
+    STARTING_CAPITAL = 100000
+
 
 class StockScanner:
-
     def __init__(self):
         self.data_engine = DataEngine()
         self.indicator_engine = IndicatorEngine()
@@ -33,886 +35,200 @@ class StockScanner:
         self.performance = PerformanceAnalyzer()
         self.backtest = BacktestEngine()
         self.backtest_analyzer = BacktestAnalyzer()
-
         self.capital = STARTING_CAPITAL
         self.results = []
         self.market_data = {}
         self.backtest_results = {}
 
     def load_market(self):
-        """Load market data for all symbols."""
-
-        self.market_data = self.data_engine.scan_ready_data()
-
-        st.write(
-            f"📥 Loaded {len(self.market_data)} symbols"
-        )
-
+        self.market_data = self.data_engine.scan_ready_data() or {}
+        st.write(f"Loaded {len(self.market_data)} symbols")
         return self.market_data
 
-    def process_symbol(
-        self,
-        symbol: str,
-        data: pd.DataFrame
-    ) -> None:
-        """Process one symbol through the complete pipeline."""
-
+    def process_symbol(self, symbol, data):
         if data is None or data.empty:
             return
 
-        # --------------------------------------------------
-        # INDICATORS
-        # --------------------------------------------------
+        data, _ = self.indicator_engine.process(data)
+        data, pattern_score = self.pattern_engine.process(data)
+        strategy = self.strategy_engine.evaluate(data)
 
-        data, indicator_score = self.indicator_engine.process(
-            data
-        )
-
-        # --------------------------------------------------
-        # PATTERNS
-        # --------------------------------------------------
-
-        data, pattern_score = self.pattern_engine.process(
-            data
-        )
-
-        # --------------------------------------------------
-        # STRATEGY
-        # --------------------------------------------------
-
-        strategy_result = self.strategy_engine.evaluate(
-            data
-        )
-
-        # --------------------------------------------------
-        # CONFIDENCE
-        # --------------------------------------------------
+        strategy_score = strategy.get("strategy_score", 0)
+        trend_score = data["TrendScore"].iloc[-1] if "TrendScore" in data.columns else 0
+        volume_spike = data["VOL_SPIKE"].iloc[-1] if "VOL_SPIKE" in data.columns else False
+        atr = data["ATR"].iloc[-1] if "ATR" in data.columns else 0
 
         confidence = self.confidence_engine.calculate(
-            strategy_score=strategy_result.get(
-                "strategy_score",
-                0
-            ),
-
-            trend_score=(
-                data["TrendScore"].iloc[-1]
-                if "TrendScore" in data.columns
-                else 0
-            ),
-
+            strategy_score=strategy_score,
+            trend_score=trend_score,
             pattern_score=pattern_score,
-
-            volume_spike=(
-                data["VOL_SPIKE"].iloc[-1]
-                if "VOL_SPIKE" in data.columns
-                else False
-            ),
-
-            atr=(
-                data["ATR"].iloc[-1]
-                if "ATR" in data.columns
-                else 0
-            )
+            volume_spike=volume_spike,
+            atr=atr,
         )
 
-        # --------------------------------------------------
-        # RISK / TRADE PLAN
-        # --------------------------------------------------
-
-        trade = self.risk_engine.trade_plan(
-            data,
-            self.capital
-        )
-
+        trade = self.risk_engine.trade_plan(data, self.capital)
         if not trade:
             return
 
-        # --------------------------------------------------
-        # RESULT
-        # --------------------------------------------------
-
         self.results.append({
-
             "Symbol": symbol,
-
-            "Signal": strategy_result.get(
-                "signal",
-                "WATCH"
-            ),
-
+            "Signal": strategy.get("signal", "WATCH"),
             "Confidence": confidence,
-
-            "StrategyScore": strategy_result.get(
-                "strategy_score",
-                0
-            ),
-
-            "TriggeredStrategies": ", ".join(
-                strategy_result.get(
-                    "triggered_strategies",
-                    []
-                )
-            ),
-
+            "StrategyScore": strategy_score,
+            "TriggeredStrategies": ", ".join(map(str, strategy.get("triggered_strategies", []))),
             "PatternScore": pattern_score,
-
-            "SL": trade.get(
-                "StopLoss",
-                0
-            ),
-
-            "Qty": trade.get(
-                "Quantity",
-                0
-            ),
-
-            "CurrentPrice": trade.get(
-                "CurrentPrice",
-                0
-            ),
-
-            "Entry": trade.get(
-                "Entry",
-                0
-            ),
-
-            "Target1": trade.get(
-                "Target1",
-                0
-            ),
-
-            "Target2": trade.get(
-                "Target2",
-                0
-            ),
-
-            "Target3": trade.get(
-                "Target3",
-                0
-            ),
-
-            "RR": trade.get(
-                "RR",
-                0
-            )
-        ])
+            "SL": trade.get("StopLoss", 0),
+            "Qty": trade.get("Quantity", 0),
+            "CurrentPrice": trade.get("CurrentPrice", 0),
+            "Entry": trade.get("Entry", 0),
+            "Target1": trade.get("Target1", 0),
+            "Target2": trade.get("Target2", 0),
+            "Target3": trade.get("Target3", 0),
+            "RR": trade.get("RR", 0),
+        })
 
     def run(self):
-        """Run scanner and backtest."""
-
-        # --------------------------------------------------
-        # LOAD MARKET DATA
-        # --------------------------------------------------
-
+        self.results = []
         self.load_market()
 
-        if not self.market_data:
-            self.results = pd.DataFrame()
-            self.backtest_results = {}
-
-            return self.results
-
-        # --------------------------------------------------
-        # LIVE SCANNER
-        # --------------------------------------------------
-
-        progress = st.progress(
-            0,
-            text="Scanning stocks..."
-        )
-
-        total_symbols = len(
-            self.market_data
-        )
-
-        for count, (
-            symbol,
-            data
-        ) in enumerate(
-            self.market_data.items(),
-            start=1
-        ):
-
+        for symbol, data in self.market_data.items():
             try:
-
-                self.process_symbol(
-                    symbol,
-                    data
-                )
-
+                self.process_symbol(symbol, data)
             except Exception:
+                st.warning(f"Scanner error: {symbol}")
+                st.code(traceback.format_exc())
 
-                st.warning(
-                    f"⚠️ Error processing {symbol}"
-                )
-
-                st.code(
-                    traceback.format_exc()
-                )
-
-            progress.progress(
-                count / total_symbols,
-                text=(
-                    f"Scanning {symbol} "
-                    f"({count}/{total_symbols})"
-                )
-            )
-
-        progress.empty()
-
-        # --------------------------------------------------
-        # CONVERT RESULTS TO DATAFRAME
-        # --------------------------------------------------
-
-        self.results = pd.DataFrame(
-            self.results
-        )
-
-        # --------------------------------------------------
-        # BACKTEST
-        # --------------------------------------------------
-
+        self.results = pd.DataFrame(self.results)
         self.backtest_results = {}
 
-        bt_progress = st.progress(
-            0,
-            text="Running backtests..."
-        )
-
-        for count, (
-            symbol,
-            data
-        ) in enumerate(
-            self.market_data.items(),
-            start=1
-        ):
-
+        for symbol, data in self.market_data.items():
             if data is None or data.empty:
                 continue
-
             try:
-
-                bt_data, _ = (
-                    self.indicator_engine.process(
-                        data.copy()
-                    )
-                )
-
-                raw_report = (
-                    self.backtest.run(
-                        bt_data
-                    )
-                )
-
-                analysis = (
-                    self.backtest_analyzer.analyze(
-                        raw_report
-                    )
-                )
-
-                self.backtest_results[
-                    symbol
-                ] = analysis
-
+                bt_data, _ = self.indicator_engine.process(data.copy())
+                raw_report = self.backtest.run(bt_data)
+                self.backtest_results[symbol] = self.backtest_analyzer.analyze(raw_report)
             except Exception:
-
-                st.warning(
-                    f"⚠️ Backtest error: {symbol}"
-                )
-
-                st.code(
-                    traceback.format_exc()
-                )
-
-            bt_progress.progress(
-                count / total_symbols,
-                text=(
-                    f"Backtesting {symbol} "
-                    f"({count}/{total_symbols})"
-                )
-            )
-
-        bt_progress.empty()
+                st.warning(f"Backtest error: {symbol}")
+                st.code(traceback.format_exc())
 
         return self.results
 
-    def send_alerts(self):
 
-        if self.results.empty:
+def show_dashboard(scanner, backtest_results):
+    st.subheader("📊 Overall Backtest Dashboard")
+
+    if not backtest_results:
+        st.info("No backtest results available. Run the scanner first.")
+        return
+
+    try:
+        stats = scanner.dashboard.overall_stats(backtest_results)
+        if not isinstance(stats, dict):
+            st.warning("Overall statistics format is invalid.")
             return
 
-        for _, row in self.results.iterrows():
+        if stats.get("Total Trades", 0) > 0:
+            c1, c2, c3, c4 = st.columns(4)
+            c1.metric("Total Trades", int(stats.get("Total Trades", 0)))
+            c2.metric("Wins", int(stats.get("Wins", 0)))
+            c3.metric("Losses", int(stats.get("Losses", 0)))
+            c4.metric("Win Rate", f"{stats.get('Win Rate', 0)}%")
 
-            if row.get(
-                "Signal",
-                "WATCH"
-            ) == "WATCH":
+            c5, c6, c7 = st.columns(3)
+            c5.metric("Total P&L", round(float(stats.get("Total PnL", 0)), 2))
+            c6.metric("Profit Factor", round(float(stats.get("Profit Factor", 0)), 2))
+            c7.metric("AI Score", int(stats.get("AI Score", 0)))
+        else:
+            st.info("Backtest completed but no closed trades were generated.")
+    except Exception:
+        st.warning("Overall dashboard could not be generated.")
+        st.code(traceback.format_exc())
 
+
+def show_ranking(scanner, backtest_results):
+    st.subheader("🏆 Stock Ranking")
+    if not backtest_results:
+        st.info("Run the scanner first to generate ranking.")
+        return
+    try:
+        ranking = scanner.dashboard.ranking_table(backtest_results)
+        if ranking is not None and not ranking.empty:
+            st.dataframe(ranking, use_container_width=True, hide_index=True)
+        else:
+            st.info("No stock ranking available.")
+    except Exception:
+        st.warning("Stock ranking could not be generated.")
+        st.code(traceback.format_exc())
+
+
+def show_summary(backtest_results):
+    st.subheader("📈 Backtest Summary")
+    if not backtest_results:
+        st.info("No backtest summary available.")
+        return
+
+    keys = [
+        "Total Trades", "Wins", "Losses", "BreakEven", "Win Rate",
+        "Total PnL", "Average Profit", "Average Loss", "Profit Factor",
+        "Max Drawdown", "AI Score", "Target1 Wins", "Target2 Wins", "Target3 Wins"
+    ]
+
+    for symbol, report in backtest_results.items():
+        with st.expander(f"📊 {symbol}"):
+            if not isinstance(report, dict):
+                st.warning("Backtest report format incorrect.")
                 continue
-
-            try:
-
-                self.alert_engine.process(
-                    signal=row["Signal"],
-                    symbol=row["Symbol"],
-                    price=row["Entry"]
-                )
-
-            except Exception:
-
-                st.warning(
-                    f"Alert error: {row['Symbol']}"
-                )
-
-    def save_logs(self):
-
-        if self.results.empty:
-            return
-
-        for _, row in self.results.iterrows():
-
-            try:
-
-                self.logger.save_trade(
-
-                    symbol=row["Symbol"],
-
-                    signal=row["Signal"],
-
-                    entry=row["Entry"],
-
-                    exit_price=0,
-
-                    sl=row["SL"],
-
-                    target=row["Target1"],
-
-                    qty=row["Qty"],
-
-                    pnl=0,
-
-                    pnl_percent=0,
-
-                    reason="Signal Generated",
-
-                    confidence=row["Confidence"],
-
-                    ema=0,
-
-                    macd=0,
-
-                    rsi=0,
-
-                    pattern=row["PatternScore"],
-
-                    trend=0
-                )
-
-            except Exception:
-
-                st.warning(
-                    f"Log error: {row['Symbol']}"
-                )
-
-    def show_dashboard(self):
-
-        if self.results.empty:
-            return
-
-        try:
-
-            st.subheader(
-                "📊 Live Dashboard"
-            )
-
-            st.write(
-                self.dashboard.summary(
-                    self.results
-                )
-            )
-
-        except Exception:
-
-            st.warning(
-                "Dashboard could not be generated."
-            )
-
-    def performance_report(self):
-
-        try:
-
-            return {
-                "Summary":
-                    self.performance.summary(),
-
-                "Average Profit":
-                    self.performance.average_profit(),
-
-                "Average Loss":
-                    self.performance.average_loss()
-            }
-
-        except Exception:
-
-            return {}
+            st.json({key: report.get(key, 0) for key in keys})
 
 
 def main():
-    """Main Streamlit application."""
-
-    # --------------------------------------------------
-    # PAGE CONFIG
-    # --------------------------------------------------
-
-    st.set_page_config(
-        page_title="AI Stock Scanner V1.4",
-        page_icon="🤖",
-        layout="wide"
-    )
-
-    # --------------------------------------------------
-    # HEADER
-    # --------------------------------------------------
-
-    st.title(
-        "🤖 AI Stock Scanner V1.4"
-    )
-
-    st.success(
-        "App Running Successfully"
-    )
-
-    # --------------------------------------------------
-    # CREATE SCANNER ONCE
-    # --------------------------------------------------
+    st.set_page_config(page_title="AI Stock Scanner V1.4", layout="wide")
+    st.title("🤖 AI Stock Scanner V1.4")
+    st.success("App Running Successfully")
 
     if "scanner" not in st.session_state:
+        st.session_state.scanner = StockScanner()
 
-        st.session_state.scanner = (
-            StockScanner()
-        )
+    scanner = st.session_state.scanner
 
-    scanner = (
-        st.session_state.scanner
-    )
+    st.subheader("⚙️ Scanner Control")
+    c1, c2 = st.columns(2)
 
-    # --------------------------------------------------
-    # CONTROL PANEL
-    # --------------------------------------------------
-
-    st.subheader(
-        "⚙️ Scanner Control"
-    )
-
-    col1, col2 = st.columns(2)
-
-    with col1:
-
-        run_scanner = st.button(
-            "🚀 Run Scanner",
-            type="primary",
-            use_container_width=True
-        )
-
-    with col2:
-
-        clear_results = st.button(
-            "🗑️ Clear Results",
-            use_container_width=True
-        )
-
-    # --------------------------------------------------
-    # CLEAR
-    # --------------------------------------------------
+    with c1:
+        run_scanner = st.button("🚀 Run Scanner", type="primary", use_container_width=True)
+    with c2:
+        clear_results = st.button("🗑️ Clear Results", use_container_width=True)
 
     if clear_results:
-
-        st.session_state.pop(
-            "scanner_results",
-            None
-        )
-
-        st.session_state.pop(
-            "backtest_results",
-            None
-        )
-
-        st.session_state.scanner = (
-            StockScanner()
-        )
-
+        st.session_state.scanner = StockScanner()
+        st.session_state.pop("scanner_results", None)
+        st.session_state.pop("backtest_results", None)
         st.rerun()
 
-    # --------------------------------------------------
-    # RUN SCANNER
-    # --------------------------------------------------
-
     if run_scanner:
-
-        try:
-
-            with st.spinner(
-                "🔄 Loading market data..."
-            ):
-
+        with st.spinner("🔄 Loading market data and running scanner..."):
+            try:
                 results = scanner.run()
+                st.session_state.scanner_results = results
+                st.session_state.backtest_results = scanner.backtest_results
+                st.success("✅ Scanner Completed Successfully")
+            except Exception:
+                st.error("❌ Scanner failed")
+                st.code(traceback.format_exc())
 
-            # Save results in session
+    results = st.session_state.get("scanner_results", pd.DataFrame())
+    backtest_results = st.session_state.get("backtest_results", {})
 
-            st.session_state.scanner_results = (
-                results
-            )
-
-            st.session_state.backtest_results = (
-                scanner.backtest_results
-            )
-
-            st.success(
-                "✅ Scanner Completed Successfully"
-            )
-
-        except Exception:
-
-            st.error(
-                "❌ Scanner failed"
-            )
-
-            st.code(
-                traceback.format_exc()
-            )
-
-    # --------------------------------------------------
-    # GET STORED RESULTS
-    # --------------------------------------------------
-
-    results = st.session_state.get(
-        "scanner_results",
-        pd.DataFrame()
-    )
-
-    backtest_results = (
-        st.session_state.get(
-            "backtest_results",
-            {}
-        )
-    )
-
-    # --------------------------------------------------
-    # SCANNER RESULTS
-    # --------------------------------------------------
-
-    st.subheader(
-        "📋 Scanner Results"
-    )
-
-    if (
-        isinstance(results, pd.DataFrame)
-        and not results.empty
-    ):
-
-        st.dataframe(
-            results,
-            use_container_width=True,
-            hide_index=True
-        )
-
+    st.subheader("📋 Scanner Results")
+    if results is not None and not results.empty:
+        st.dataframe(results, use_container_width=True, hide_index=True)
     else:
+        st.info("No scanner results yet. Click '🚀 Run Scanner' to start.")
 
-        st.info(
-            "No scanner results yet. "
-            "Click 'Run Scanner' to start."
-        )
-
-    # --------------------------------------------------
-    # OVERALL BACKTEST DASHBOARD
-    # --------------------------------------------------
-
-    st.subheader(
-        "📊 Overall Backtest Dashboard"
-    )
-
-    if not backtest_results:
-
-        st.info(
-            "No backtest results available. "
-            "Run the scanner first."
-        )
-
-    else:
-
-        try:
-
-            overall_stats = (
-                scanner.dashboard.overall_stats(
-                    backtest_results
-                )
-            )
-
-            total_trades = int(
-                overall_stats.get(
-                    "Total Trades",
-                    0
-                )
-            )
-
-            if total_trades > 0:
-
-                col1, col2, col3, col4 = (
-                    st.columns(4)
-                )
-
-                col1.metric(
-                    "Total Trades",
-                    total_trades
-                )
-
-                col2.metric(
-                    "Wins",
-                    int(
-                        overall_stats.get(
-                            "Wins",
-                            0
-                        )
-                    )
-                )
-
-                col3.metric(
-                    "Losses",
-                    int(
-                        overall_stats.get(
-                            "Losses",
-                            0
-                        )
-                    )
-                )
-
-                col4.metric(
-                    "Win Rate",
-                    f"{overall_stats.get('Win Rate', 0)}%"
-                )
-
-                col5, col6, col7 = (
-                    st.columns(3)
-                )
-
-                col5.metric(
-                    "Total P&L",
-                    round(
-                        overall_stats.get(
-                            "Total PnL",
-                            0
-                        ),
-                        2
-                    )
-                )
-
-                col6.metric(
-                    "Profit Factor",
-                    round(
-                        overall_stats.get(
-                            "Profit Factor",
-                            0
-                        ),
-                        2
-                    )
-                )
-
-                col7.metric(
-                    "AI Score",
-                    int(
-                        overall_stats.get(
-                            "AI Score",
-                            0
-                        )
-                    )
-                )
-
-            else:
-
-                st.info(
-                    "Backtest completed but "
-                    "no closed trades were generated."
-                )
-
-        except Exception:
-
-            st.warning(
-                "Overall dashboard could not be generated."
-            )
-
-            st.code(
-                traceback.format_exc()
-            )
-
-    # --------------------------------------------------
-    # STOCK RANKING
-    # --------------------------------------------------
-
-    st.subheader(
-        "🏆 Stock Ranking"
-    )
-
-    try:
-
-        ranking_df = (
-            scanner.dashboard.ranking_table(
-                backtest_results
-            )
-        )
-
-        if (
-            ranking_df is not None
-            and not ranking_df.empty
-        ):
-
-            st.dataframe(
-                ranking_df,
-                use_container_width=True,
-                hide_index=True
-            )
-
-        else:
-
-            st.info(
-                "No stock ranking available."
-            )
-
-    except Exception:
-
-        st.warning(
-            "Stock ranking could not be generated."
-        )
-
-        st.code(
-            traceback.format_exc()
-        )
-
-    # --------------------------------------------------
-    # BACKTEST SUMMARY
-    # --------------------------------------------------
-
-    st.subheader(
-        "📈 Backtest Summary"
-    )
-
-    if backtest_results:
-
-        for symbol, report in (
-            backtest_results.items()
-        ):
-
-            with st.expander(
-                f"📊 {symbol}"
-            ):
-
-                if not isinstance(
-                    report,
-                    dict
-                ):
-
-                    st.warning(
-                        "Backtest report format incorrect."
-                    )
-
-                    continue
-
-                summary = {
-
-                    "Total Trades":
-                        report.get(
-                            "Total Trades",
-                            0
-                        ),
-
-                    "Wins":
-                        report.get(
-                            "Wins",
-                            0
-                        ),
-
-                    "Losses":
-                        report.get(
-                            "Losses",
-                            0
-                        ),
-
-                    "BreakEven":
-                        report.get(
-                            "BreakEven",
-                            0
-                        ),
-
-                    "Win Rate":
-                        report.get(
-                            "Win Rate",
-                            0
-                        ),
-
-                    "Total PnL":
-                        report.get(
-                            "Total PnL",
-                            0
-                        ),
-
-                    "Average Profit":
-                        report.get(
-                            "Average Profit",
-                            0
-                        ),
-
-                    "Average Loss":
-                        report.get(
-                            "Average Loss",
-                            0
-                        ),
-
-                    "Profit Factor":
-                        report.get(
-                            "Profit Factor",
-                            0
-                        ),
-
-                    "Max Drawdown":
-                        report.get(
-                            "Max Drawdown",
-                            0
-                        ),
-
-                    "AI Score":
-                        report.get(
-                            "AI Score",
-                            0
-                        ),
-
-                    "Target1 Wins":
-                        report.get(
-                            "Target1 Wins",
-                            0
-                        ),
-
-                    "Target2 Wins":
-                        report.get(
-                            "Target2 Wins",
-                            0
-                        ),
-
-                    "Target3 Wins":
-                        report.get(
-                            "Target3 Wins",
-                            0
-                        )
-                }
-
-                st.json(
-                    summary
-                )
-
-    else:
-
-        st.info(
-            "Run the scanner to generate "
-            "individual backtest summaries."
-        )
+    show_dashboard(scanner, backtest_results)
+    show_ranking(scanner, backtest_results)
+    show_summary(backtest_results)
 
 
 if __name__ == "__main__":
