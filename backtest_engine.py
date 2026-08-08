@@ -1,3 +1,5 @@
+class BacktestEngine:
+
 def __init__(self):
     self.lookahead_days = BACKTEST_LOOKAHEAD
     self.entry_atr_buffer = ENTRY_ATR_BUFFER
